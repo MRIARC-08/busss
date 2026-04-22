@@ -1,0 +1,14 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/search/page": "app/search/page.js",
+  "/api/search-matching/route": "app/api/search-matching/route.js",
+  "/track/page": "app/track/page.js",
+  "/api/geocode/route": "app/api/geocode/route.js",
+  "/api/realtime/vehicle-positions/route": "app/api/realtime/vehicle-positions/route.js",
+  "/api/route-geometry/route": "app/api/route-geometry/route.js",
+  "/api/gtfs-stops/route": "app/api/gtfs-stops/route.js",
+  "/report/page": "app/report/page.js",
+  "/live/page": "app/live/page.js"
+}

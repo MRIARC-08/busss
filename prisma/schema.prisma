@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model State {
+  id     Int    @id @default(autoincrement())
+  code   String @unique
+  name   String
+  cities City[]
+}
+
+model City {
+  id      Int    @id @default(autoincrement())
+  name    String
+  stateId Int
+  state   State  @relation(fields: [stateId], references: [id])
+  stops   Stop[]
+}
+
+model Stop {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  name        String
+  latitude    Float
+  longitude   Float
+  cityId      Int
+  city        City    @relation(fields: [cityId], references: [id])
+  type        String  @default("REGULAR")
+  hasShelter  Boolean @default(false)
+  hasWaiting  Boolean @default(false)
+  reports     Report[]
+}
+
+model Authority {
+  id     Int     @id @default(autoincrement())
+  code   String  @unique
+  name   String
+  state  String
+  routes Route[]
+  buses  Bus[]
+}
+
+model Route {
+  id               Int       @id @default(autoincrement())
+  routeNumber      String    @unique
+  name             String
+  authorityId      Int
+  authority        Authority @relation(fields: [authorityId], references: [id])
+  type             String    @default("ORDINARY")
+  frequencyMinutes Int       @default(30)
+  totalMinutes     Int
+  totalKm          Float
+  baseFare         Float
+  reliability      Float     @default(0.85)
+  isActive         Boolean   @default(true)
+  stops            RouteStop[]
+  buses            Bus[]
+  reports          Report[]
+}
+
+model RouteStop {
+  id             Int   @id @default(autoincrement())
+  routeId        Int
+  route          Route @relation(fields: [routeId], references: [id])
+  stopId         Int
+  stopName       String
+  sequence       Int
+  distanceKm     Float
+  timeMinutes    Int
+  latitude       Float
+  longitude      Float
+
+  @@unique([routeId, sequence])
+}
+
+model Bus {
+  id           Int       @id @default(autoincrement())
+  busNumber    String    @unique
+  routeId      Int
+  route        Route     @relation(fields: [routeId], references: [id])
+  authorityId  Int
+  authority    Authority @relation(fields: [authorityId], references: [id])
+  capacity     Int       @default(55)
+  type         String    @default("ORDINARY")
+  isActive     Boolean   @default(true)
+  simSegment   Int       @default(0)
+  simProgress  Float     @default(0)
+  simOccupancy Int       @default(0)
+  simDelay     Int       @default(0)
+  simStatus    String    @default("ON_ROUTE")
+  reports      Report[]
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  type        String
+  severity    String   @default("MEDIUM")
+  description String
+  busNumber   String?
+  busId       Int?
+  bus         Bus?     @relation(fields: [busId], references: [id])
+  routeId     Int?
+  route       Route?   @relation(fields: [routeId], references: [id])
+  stopId      Int?
+  stop        Stop?    @relation(fields: [stopId], references: [id])
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  mobile    String   @unique
+  firstName String
+  lastName  String
+  age       Int
+  aadhaar   String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}

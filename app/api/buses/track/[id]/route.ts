@@ -1,166 +1,211 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Simple in-memory simulation state
-const simState = new Map<number, any>();
-
-function getOrInitState(bus: any) {
-  if (!simState.has(bus.id)) {
-    simState.set(bus.id, {
-      segment:    bus.simSegment,
-      progress:   bus.simProgress,
-      occupancy:  bus.simOccupancy,
-      delay:      bus.simDelay,
-      lastTick:   Date.now(),
-    });
-  }
-  return simState.get(bus.id)!;
+interface SimState {
+  segmentIndex: number;
+  progressPct: number;
+  occupancy: number;
+  delayMin: number;
+  lastTickMs: number;
+  speedKmh: number;
 }
 
-function tickBus(state: any, stops: any[]) {
-  const now     = Date.now();
-  const elapsed = (now - state.lastTick) / 1000;
-  const speedKmh = 35;
-  const speedMs  = (speedKmh * 1000) / 3600;
+const simStates = new Map<number, SimState>();
 
-  if (state.segment >= stops.length - 1) {
-    return { ...state, status: "COMPLETED" };
+function speedForType(type: string): number {
+  switch (type.toUpperCase()) {
+    case "ORDINARY":  return 30;
+    case "EXPRESS":   return 50;
+    case "INTERCITY": return 65;
+    default:          return 35;
   }
-
-  const segStart  = stops[state.segment];
-  const segEnd    = stops[state.segment + 1];
-  const segDistKm = haversine(segStart, segEnd);
-  const segDistM  = segDistKm * 1000;
-
-  const progressIncrease = (speedMs * elapsed / segDistM) * 100;
-  let newProgress = state.progress + progressIncrease;
-  let newSegment  = state.segment;
-
-  if (newProgress >= 100) {
-    newProgress = 0;
-    newSegment  = state.segment + 1;
-    // Simulate passenger change
-    const alighting = Math.floor(state.occupancy * 0.2 * Math.random());
-    const boarding   = Math.floor(Math.random() * 12);
-    state.occupancy  = Math.max(0, state.occupancy - alighting + boarding);
-  }
-
-  return {
-    ...state,
-    segment:  newSegment,
-    progress: newProgress,
-    lastTick: now,
-    status:   "ON_ROUTE",
-  };
 }
 
-function haversine(a: any, b: any) {
-  const R    = 6371;
-  const dLat = deg2rad(b.latitude - a.latitude);
-  const dLon = deg2rad(b.longitude - a.longitude);
-  const x    = Math.sin(dLat/2)**2 +
-               Math.cos(deg2rad(a.latitude)) *
-               Math.cos(deg2rad(b.latitude)) *
-               Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function deg2rad(d: number) { return d * Math.PI / 180; }
-
-function interpolate(a: any, b: any, pct: number) {
-  const p = pct / 100;
-  return {
-    lat: a.latitude  + (b.latitude  - a.latitude)  * p,
-    lon: a.longitude + (b.longitude - a.longitude) * p,
-  };
+function crowdLevel(occupancy: number, capacity: number): "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH" {
+  const hour = new Date().getHours();
+  const isPeak = (hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 20);
+  const loadPct = (occupancy / capacity) * 100 * (isPeak ? 1.3 : 1);
+  if (loadPct < 40) return "LOW";
+  if (loadPct < 65) return "MEDIUM";
+  if (loadPct < 85) return "HIGH";
+  return "VERY_HIGH";
 }
 
 export async function GET(
-  request: NextRequest,
+  _req: Request,
   { params }: { params: { id: string } }
 ) {
-  const busId = parseInt(params.id);
+  const busId = parseInt(params.id, 10);
   if (isNaN(busId)) {
     return NextResponse.json({ error: "Invalid bus ID" }, { status: 400 });
   }
 
+  let bus: any;
   try {
-    const bus = await prisma.bus.findUnique({
+    bus = await prisma.bus.findUnique({
       where: { id: busId },
       include: {
         route: {
           include: {
-            stops: { orderBy: { sequence: "asc" } },
             authority: true,
+            stops: { orderBy: { sequence: "asc" } },
           },
         },
         authority: true,
       },
     });
+  } catch {
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
+  }
 
-    if (!bus) {
-      return NextResponse.json({ error: "Bus not found" }, { status: 404 });
+  if (!bus) return NextResponse.json({ error: "Bus not found" }, { status: 404 });
+
+  const stops = bus.route.stops;
+  if (!stops || stops.length < 2) {
+    return NextResponse.json({ error: "Route has insufficient stops" }, { status: 400 });
+  }
+
+  const now = Date.now();
+  let sim = simStates.get(busId);
+
+  if (!sim) {
+    const initOcc = Math.floor(bus.capacity * (0.3 + Math.random() * 0.35));
+    sim = {
+      segmentIndex: Math.min(bus.simSegment ?? 0, stops.length - 2),
+      progressPct:  bus.simProgress ?? 0,
+      occupancy:    bus.simOccupancy || initOcc,
+      delayMin:     bus.simDelay ?? 0,
+      lastTickMs:   now,
+      speedKmh:     speedForType(bus.route.type),
+    };
+    simStates.set(busId, sim);
+  }
+
+  // ── Advance simulation ────────────────────────────────────────────────────
+  const elapsedSec = (now - sim.lastTickMs) / 1000;
+
+  if (sim.segmentIndex >= stops.length - 1) {
+    sim.segmentIndex = 0;
+    sim.progressPct  = 0;
+  }
+
+  const segStart = stops[sim.segmentIndex];
+  const segEnd   = stops[sim.segmentIndex + 1];
+  const segLenKm = haversineKm(
+    segStart.latitude, segStart.longitude,
+    segEnd.latitude,   segEnd.longitude
+  );
+
+  const distTraveledKm  = (sim.speedKmh / 3600) * elapsedSec;
+  const progressInc     = segLenKm > 0 ? (distTraveledKm / segLenKm) * 100 : 0;
+  let newProgress       = sim.progressPct + progressInc;
+
+  while (newProgress >= 100) {
+    newProgress -= 100;
+    sim.segmentIndex++;
+    const board  = Math.floor(Math.random() * 9);
+    const alight = Math.floor(Math.random() * Math.min(13, sim.occupancy + 1));
+    sim.occupancy = Math.max(0, Math.min(bus.capacity, sim.occupancy - alight + board));
+    if (sim.segmentIndex >= stops.length - 1) {
+      sim.segmentIndex = 0;
+      newProgress      = 0;
+      break;
+    }
+  }
+
+  sim.progressPct = newProgress;
+  sim.lastTickMs  = now;
+  simStates.set(busId, sim);
+
+  // ── Current interpolated position ─────────────────────────────────────────
+  const curStart = stops[sim.segmentIndex];
+  const curEnd   = stops[Math.min(sim.segmentIndex + 1, stops.length - 1)];
+  const frac     = sim.progressPct / 100;
+
+  const currentLat = curStart.latitude  + (curEnd.latitude  - curStart.latitude)  * frac;
+  const currentLon = curStart.longitude + (curEnd.longitude - curStart.longitude) * frac;
+
+  // ── ETA to NEXT stop (purely distance / speed) ────────────────────────────
+  const curSegLenKm      = haversineKm(curStart.latitude, curStart.longitude, curEnd.latitude, curEnd.longitude);
+  const remainingKm      = curSegLenKm * (1 - frac);
+  const etaToNextStopMin = sim.speedKmh > 0 ? (remainingKm / sim.speedKmh) * 60 : 0;
+
+  const segmentIndex = sim.segmentIndex;
+  const speedKmh     = sim.speedKmh;
+
+  // ── allStops with CORRECT cumulative ETA (Haversine + speed only) ─────────
+  const allStops = stops.map((stop: any, index: number) => {
+    if (index < segmentIndex) {
+      return {
+        sequence: stop.sequence, stopName: stop.stopName,
+        latitude: stop.latitude, longitude: stop.longitude,
+        status: "DEPARTED" as const, etaFromNowMin: null,
+      };
     }
 
-    const stops = bus.route.stops;
-    let   state = getOrInitState(bus);
-    state = tickBus(state, stops);
-    simState.set(busId, state);
+    if (index === segmentIndex) {
+      return {
+        sequence: stop.sequence, stopName: stop.stopName,
+        latitude: stop.latitude, longitude: stop.longitude,
+        status: "CURRENT" as const, etaFromNowMin: null,
+      };
+    }
 
-    const seg     = Math.min(state.segment, stops.length - 1);
-    const nextSeg = Math.min(state.segment + 1, stops.length - 1);
+    // UPCOMING: cumulative ETA from current position using real distances
+    let cumulativeEta = etaToNextStopMin;
+    for (let j = segmentIndex + 1; j < index; j++) {
+      const segDist = haversineKm(
+        stops[j].latitude, stops[j].longitude,
+        stops[j + 1].latitude, stops[j + 1].longitude
+      );
+      cumulativeEta += (segDist / speedKmh) * 60;
+    }
 
-    const currentStop = stops[seg];
-    const nextStop    = stops[nextSeg];
+    return {
+      sequence: stop.sequence, stopName: stop.stopName,
+      latitude: stop.latitude, longitude: stop.longitude,
+      status: "UPCOMING" as const,
+      etaFromNowMin: parseFloat(cumulativeEta.toFixed(1)), // FIXED: 1 decimal so countdown is visible every 4s poll
+    };
+  });
 
-    const position = seg < stops.length - 1
-      ? interpolate(currentStop, nextStop, state.progress)
-      : { lat: currentStop.latitude, lon: currentStop.longitude };
+  console.log(
+    `[SIM] Bus ${busId} | Seg ${segmentIndex} | Progress ${sim.progressPct.toFixed(1)}% | ` +
+    `Speed ${speedKmh}kmh | ETA next ${Math.round(etaToNextStopMin)}min`
+  );
 
-    const distToNext = seg < stops.length - 1
-      ? haversine(position, nextStop) 
-      : 0;
-
-    const etaMin = distToNext > 0
-      ? Math.max(1, Math.round((distToNext / 35) * 60))
-      : 0;
-
-    const load = state.occupancy / bus.capacity;
-    const crowdLevel = load < 0.4 ? "LOW"
-                     : load < 0.65 ? "MEDIUM"
-                     : load < 0.85 ? "HIGH"
-                     : "VERY_HIGH";
-
-    return NextResponse.json({
-      busId,
-      busNumber:    bus.busNumber,
-      routeNumber:  bus.route.routeNumber,
-      routeName:    bus.route.name,
-      authority:    bus.authority.code,
-      position,
-      currentStop:  currentStop.stopName,
-      nextStop:     nextStop.stopName,
-      distanceToNextKm: Math.round(distToNext * 10) / 10,
-      etaToNextStopMin: etaMin,
-      occupancy:    state.occupancy,
-      capacity:     bus.capacity,
-      crowdLevel,
-      status:       state.status,
-      delayMin:     state.delay,
-      allStops:     stops.map((s, i) => ({
-        sequence:   s.sequence,
-        name:       s.stopName,
-        status:     i < seg ? "DEPARTED"
-                  : i === seg ? "CURRENT"
-                  : "UPCOMING",
-        etaMin:     i <= seg ? null
-                  : Math.round(etaMin + (s.timeMinutes - currentStop.timeMinutes)),
-      })),
-      lastUpdated:  new Date().toISOString(),
-    });
-
-  } catch (error) {
-    console.error("Tracking error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  return NextResponse.json({
+    busId:            bus.id,
+    busNumber:        bus.busNumber,
+    routeNumber:      bus.route.routeNumber,
+    routeName:        bus.route.name,
+    authority:        bus.authority.name,
+    position:         { lat: currentLat, lon: currentLon },
+    segmentIndex,
+    progressPct:      parseFloat(sim.progressPct.toFixed(2)),
+    currentStopName:  curStart.stopName,
+    nextStopName:     curEnd.stopName,
+    distanceToNextKm: parseFloat(remainingKm.toFixed(2)),
+    etaToNextStopMin: parseFloat(etaToNextStopMin.toFixed(1)), // FIXED: 1 decimal so stat card shows countdown
+    occupancy:        sim.occupancy,
+    capacity:         bus.capacity,
+    crowdLevel:       crowdLevel(sim.occupancy, bus.capacity),
+    status:           "ON_ROUTE",
+    delayMin:         sim.delayMin,
+    speedKmh,
+    allStops,
+    lastUpdated:      new Date().toISOString(),
+  });
 }

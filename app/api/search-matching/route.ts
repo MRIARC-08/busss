@@ -14,6 +14,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: "Missing origin or destination" }, { status: 400 });
   }
 
+  // Guard: cannot search a route from a place to itself
+  if (from.trim().toLowerCase() === to.trim().toLowerCase()) {
+    return NextResponse.json({
+      success: false,
+      sameStop: true,
+      error: "Origin and destination are the same. Please choose different stops.",
+    }, { status: 400 });
+  }
+
   try {
     const API_KEY = process.env.DELHI_GTFS_API_KEY;
     if (!API_KEY) throw new Error("API Key Missing");
@@ -62,7 +71,11 @@ export async function GET(request: Request) {
        return {
          ...v,
          status,
-         etaToSource: Math.abs(fromOffset - currentSeq) * 4 // mock 4 mins per stop interval
+         etaToSource: Math.abs(fromOffset - currentSeq) * 4, // mock 4 mins per stop interval
+         isAC: Math.random() > 0.5,
+         fare: Math.floor(Math.random() * 30) + 15,
+         seats: 45,
+         occupancy: Math.floor(Math.random() * 45)
        };
     });
 

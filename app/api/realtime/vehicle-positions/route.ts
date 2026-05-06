@@ -11,7 +11,7 @@ export async function GET() {
     if (!API_KEY) {
       throw new Error("DELHI_GTFS_API_KEY is not defined in environment variables");
     }
-    const res = await fetch(`https://otd.delhi.gov.in/api/realtime/VehiclePositions.pb?key=${API_KEY}`, { cache: "no-store" });
+    const res = await fetch(`https://otd.delhi.gov.in/api/realtime/VehiclePositions.pb?key=${API_KEY}`);
     
     if (!res.ok) {
       throw new Error(`Failed to fetch GTFS data: ${res.status} ${res.statusText}`);
@@ -36,7 +36,7 @@ export async function GET() {
         longitude: entity.vehicle?.position?.longitude,
         speed: entity.vehicle?.position?.speed,
         stopSequence: entity.vehicle?.currentStopSequence,
-        timestamp: entity.vehicle?.timestamp?.low,
+        timestamp: (entity.vehicle?.timestamp as any)?.low || entity.vehicle?.timestamp,
       };
     }).filter(v => v.latitude && v.longitude);
     

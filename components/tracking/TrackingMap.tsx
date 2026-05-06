@@ -1,161 +1,227 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
 
-interface Props {
-  position?: { lat: number; lon: number };
-  busNumber?: string;
-  stops?: any[];
-  routeStops?: any[];
+// ── Fix Leaflet default icon paths ────────────────────────────────────────────
+if (typeof window !== "undefined") {
+  const L = require("leaflet");
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+    iconUrl:       "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+    shadowUrl:     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  });
 }
 
-export default function TrackingMap({ position, busNumber }: Props) {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({});
+// ── Module-level road path cache keyed by routeNumber ────────────────────────
+// Different routes get different cached paths; same route reuses the cached path.
+const routeGeometryCache = new Map<string, Array<{ lat: number; lon: number }>>();
 
-  useEffect(() => {
-    async function fetchRealtime() {
-      try {
-        const res = await fetch("/api/realtime/vehicle-positions");
-        const data = await res.json();
-        if (data.success && data.vehicles) {
-          setVehicles(data.vehicles);
-        }
-      } catch (e) {
-        console.error("Failed to fetch real-time GTFS");
-      }
+// ── fetchRoadPath — OSRM (free, no key) → straight-line fallback ─────────────
+async function fetchRoadPath(
+  stops: Array<{ latitude: number; longitude: number }>
+): Promise<Array<{ lat: number; lon: number }>> {
+  if (stops.length < 2) return stops.map(s => ({ lat: s.latitude, lon: s.longitude }));
+
+  try {
+    // OSRM public API — longitude FIRST, then latitude
+    const coords = stops.map(s => `${s.longitude},${s.latitude}`).join(";");
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates?.length > 1) {
+      return (data.routes[0].geometry.coordinates as [number, number][]).map(
+        ([lon, lat]) => ({ lat, lon })
+      );
     }
-    
-    fetchRealtime();
-    const interval = setInterval(fetchRealtime, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  } catch (e) {
+    console.warn("[MAP] OSRM failed, using straight-line fallback", e);
+  }
 
+  // Straight-line fallback — always works
+  return stops.map(s => ({ lat: s.latitude, lon: s.longitude }));
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+interface StopData {
+  stopName: string;
+  latitude: number;
+  longitude: number;
+  status: "DEPARTED" | "CURRENT" | "UPCOMING";
+  etaFromNowMin: number | null;
+}
+
+interface TrackingMapProps {
+  position:    { lat: number; lon: number };
+  busNumber:   string;
+  routeNumber: string;  // used as cache key — must be unique per route
+  allStops:    StopData[];
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function TrackingMap({
+  position,
+  busNumber,
+  routeNumber,
+  allStops,
+}: TrackingMapProps) {
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const mapRef         = useRef<any>(null);
+  const markerRef      = useRef<any>(null);
+  const polylineRef    = useRef<any>(null);
+  const stopMarkersRef = useRef<any[]>([]);
+
+  // ── Initialize Leaflet map ONCE on mount, destroy on unmount ─────────────
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return;
+    if (!containerRef.current) return;
 
-    // We provide a dummy token to bypass the token check since we use free OSM raster tiles.
-    mapboxgl.accessToken = "pk.eyJ1IjoiZHVtbXkiLCJhIjoiY2xwMGx2czI2MHQzbTJxbmIzMm5zbm4yayJ9.dummy";
-
-    const map = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        ],
-      },
-      center: position && position.lat ? [position.lon, position.lat] : [77.1025, 28.7041], // Default Delhi
-      zoom: 12,
+    const L = require("leaflet");
+    const map = L.map(containerRef.current, {
+      center:       [position.lat, position.lon],
+      zoom:         12,
+      preferCanvas: true,
     });
-    
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Bus marker
+    const busIcon = L.divIcon({
+      html: `<div style="
+        background:#1d4ed8;color:white;border-radius:50%;
+        width:36px;height:36px;display:flex;align-items:center;
+        justify-content:center;font-size:18px;border:3px solid white;
+        box-shadow:0 2px 12px rgba(0,0,0,0.4);
+        transform:translate(-50%,-50%);">🚌</div>`,
+      iconSize:   [36, 36],
+      iconAnchor: [18, 18],
+      className:  "",
+    });
+
+    markerRef.current = L.marker([position.lat, position.lon], {
+      icon: busIcon,
+      zIndexOffset: 1000,
+    })
+      .bindPopup(`<strong>Bus ${busNumber}</strong>`)
+      .addTo(map);
+
     mapRef.current = map;
 
     return () => {
       map.remove();
-      mapRef.current = null;
+      mapRef.current      = null;
+      markerRef.current   = null;
+      polylineRef.current = null;
+      stopMarkersRef.current = [];
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // map container init only once
 
-  // Update Real-Time Markers
+  // ── Draw road path when routeNumber changes (different bus/route) ─────────
+  // Uses routeNumber as cache key so HR-29 and DTC-420 get different paths.
+  useEffect(() => {
+    if (!mapRef.current || !allStops || allStops.length < 2) return;
+    const L   = require("leaflet");
+    const map = mapRef.current;
+
+    async function drawRoute() {
+      let pathCoords: Array<{ lat: number; lon: number }>;
+
+      if (routeGeometryCache.has(routeNumber)) {
+        pathCoords = routeGeometryCache.get(routeNumber)!;
+      } else {
+        pathCoords = await fetchRoadPath(allStops);
+        routeGeometryCache.set(routeNumber, pathCoords);
+      }
+
+      // FIXED: map may have been destroyed while the async fetch was in-flight
+      if (!mapRef.current) return;
+
+      // Remove old polyline
+      if (polylineRef.current) {
+        polylineRef.current.remove();
+        polylineRef.current = null;
+      }
+
+      // Draw new polyline for this route
+      if (pathCoords.length > 1) {
+        polylineRef.current = L.polyline(
+          pathCoords.map(p => [p.lat, p.lon] as [number, number]),
+          { color: "#1d4ed8", weight: 4, opacity: 0.8, lineJoin: "round" }
+        ).addTo(mapRef.current);
+
+        try {
+          const b = polylineRef.current.getBounds();
+          if (b.isValid()) mapRef.current.fitBounds(b, { padding: [40, 40] });
+        } catch {}
+      }
+    }
+
+    drawRoute();
+  }, [routeNumber]); // re-runs when a different bus/route is selected
+
+  // ── Redraw stop markers when route or stop statuses change ───────────────
   useEffect(() => {
     if (!mapRef.current) return;
+    const L = require("leaflet");
 
-    // 1. Maintain active incoming real-time buses
-    const activeIds = new Set<string>();
+    // Remove previous stop markers
+    stopMarkersRef.current.forEach(m => { try { m.remove(); } catch {} });
+    stopMarkersRef.current = [];
 
-    vehicles.forEach(v => {
-      if (!v.longitude || !v.latitude) return;
-      const id = v.id || v.tripId || Math.random().toString();
-      activeIds.add(id);
-      
-      let marker = markersRef.current[id];
-      if (!marker) {
-        const el = document.createElement("div");
-        el.innerHTML = "🚌";
-        el.style.fontSize = "16px";
-        el.style.background = "#fb792b";
-        el.style.borderRadius = "50%";
-        el.style.width = "28px";
-        el.style.height = "28px";
-        el.style.display = "flex";
-        el.style.alignItems = "center";
-        el.style.justifyContent = "center";
-        el.style.border = "2px solid white";
-        el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
-        el.title = `Bus: ${v.id} | Route: ${v.routeId}`;
+    allStops.forEach(stop => {
+      if (!stop.latitude || !stop.longitude) return;
 
-        marker = new mapboxgl.Marker(el)
-          .setLngLat([v.longitude, v.latitude])
-          .addTo(mapRef.current!);
-        
-        markersRef.current[id] = marker;
-      } else {
-        marker.setLngLat([v.longitude, v.latitude]);
-      }
+      const isDeparted = stop.status === "DEPARTED";
+      const isCurrent  = stop.status === "CURRENT";
+
+      const fillColor  = isDeparted ? "#9ca3af" : isCurrent ? "#1d4ed8" : "#ffffff";
+      const color      = isDeparted ? "#6b7280" : "#1d4ed8";
+      const radius     = isCurrent ? 8 : isDeparted ? 4 : 5;
+      const fillOpacity = isDeparted ? 0.7 : 1;
+
+      const cm = L.circleMarker([stop.latitude, stop.longitude], {
+        radius, fillColor, color, weight: 2, opacity: 1, fillOpacity,
+      }).bindPopup(
+        `<div style="font-size:12px;min-width:120px">
+          <strong>${stop.stopName}</strong>
+          <div style="color:#6b7280;font-size:10px;text-transform:uppercase;margin-top:2px">${stop.status}</div>
+          ${stop.etaFromNowMin != null
+            ? `<div style="color:#1d4ed8;font-size:11px;margin-top:2px">ETA: ${stop.etaFromNowMin} min</div>`
+            : ""}
+        </div>`
+      ).addTo(mapRef.current);
+
+      stopMarkersRef.current.push(cm);
     });
+  }, [routeNumber, allStops]); // redraw when route changes OR stop statuses update
 
-    // Cleanup stale markers out of range
-    Object.keys(markersRef.current).forEach(id => {
-      if (id !== "tracked-dummy" && !activeIds.has(id)) {
-        markersRef.current[id].remove();
-        delete markersRef.current[id];
-      }
-    });
-
-  }, [vehicles]);
-
-  // Handle tracked dummy bus explicitly
+  // ── Update bus marker position on every poll tick ─────────────────────────
+  // ONLY updates marker.setLatLng — no polyline redraw, no map reinit
   useEffect(() => {
-    if (mapRef.current && position && position.lat && position.lon) {
-      let marker = markersRef.current["tracked-dummy"];
-      if (!marker) {
-        const el = document.createElement("div");
-        el.innerHTML = "🎯";
-        el.style.fontSize = "20px";
-        el.style.background = "#213d77";
-        el.style.borderRadius = "50%";
-        el.style.width = "32px";
-        el.style.height = "32px";
-        el.style.display = "flex";
-        el.style.alignItems = "center";
-        el.style.justifyContent = "center";
-        el.style.border = "2px solid white";
-        el.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
-        el.style.zIndex = "100";
+    if (!markerRef.current) return;
+    markerRef.current.setLatLng([position.lat, position.lon]);
 
-        marker = new mapboxgl.Marker(el)
-          .setLngLat([position.lon, position.lat])
-          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>Tracked Bus ${busNumber}</strong>`))
-          .addTo(mapRef.current);
-        
-        markersRef.current["tracked-dummy"] = marker;
-      } else {
-        marker.setLngLat([position.lon, position.lat]);
-      }
-      
-      // Keep center gracefully centered on the tracked bus
-      mapRef.current.panTo([position.lon, position.lat]);
+    // Pan only if bus moves outside visible bounds
+    if (mapRef.current) {
+      try {
+        const bounds = mapRef.current.getBounds();
+        if (!bounds.contains([position.lat, position.lon])) {
+          mapRef.current.panTo([position.lat, position.lon], { animate: true, duration: 1 });
+        }
+      } catch {}
     }
-  }, [position, busNumber]);
+  }, [position.lat, position.lon]);
 
-  return <div ref={mapContainer} className="w-full h-full min-h-[300px]" />;
+  return (
+    <div
+      ref={containerRef}
+      style={{ height: "320px", width: "100%" }}
+      className="rounded-xl overflow-hidden"
+    />
+  );
 }

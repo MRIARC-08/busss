@@ -1,612 +1,294 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState, Suspense, useRef } from "react";
-import { Loader2, Info, MapPin } from "lucide-react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import dynamic from "next/dynamic";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useBusTracking } from "@/hooks/useBusTracking";
+import {
+  Loader2, AlertCircle, MapPin, Users, Zap, Clock,
+  Navigation, ArrowLeft, RefreshCw, Bus,
+} from "lucide-react";
 
-// ─── Geometry helper ──────────────────────────────────────────────────────────
-function sqr(x: number) { return x * x; }
-function dist2(v: { lat: number; lon: number }, w: { lat: number; lon: number }) {
-  return sqr(v.lon - w.lon) + sqr(v.lat - w.lat);
-}
-function distToSegSq(
-  p: { lat: number; lon: number },
-  v: { lat: number; lon: number },
-  w: { lat: number; lon: number }
-) {
-  const l2 = dist2(v, w);
-  if (l2 === 0) return dist2(p, v);
-  let t = ((p.lon - v.lon) * (w.lon - v.lon) + (p.lat - v.lat) * (w.lat - v.lat)) / l2;
-  t = Math.max(0, Math.min(1, t));
-  return dist2(p, { lon: v.lon + t * (w.lon - v.lon), lat: v.lat + t * (w.lat - v.lat) });
-}
-function isOnCorridor(
-  p: { lat: number; lon: number },
-  v: { lat: number; lon: number },
-  w: { lat: number; lon: number }
-) {
-  return Math.sqrt(distToSegSq(p, v, w)) < 0.04;
-}
-
-// ─── Stop marker helper ───────────────────────────────────────────────────────
-function renderStopMarkers(stops: any[], layer: L.LayerGroup) {
-  stops.forEach((st) => {
-    if (!st.lat || !st.lon) return;
-    const fill =
-      st.status === "passed" ? "#9ca3af" : st.status === "current" ? "#3b82f6" : "#22c55e";
-    L.circleMarker([st.lat, st.lon], {
-      radius: st.status === "current" ? 8 : 5,
-      fillColor: fill,
-      color: "#fff",
-      weight: st.status === "current" ? 2 : 1,
-      opacity: 1,
-      fillOpacity: 0.95,
-      zIndexOffset: st.status === "current" ? 500 : 0,
-    })
-      .bindTooltip(
-        '<div style="font-family:inherit;font-size:12px">' +
-          '<span style="font-size:9px;text-transform:uppercase;color:#888;display:block">' +
-          st.status +
-          "</span>" +
-          "<strong>" +
-          st.name +
-          "</strong></div>"
-      )
-      .addTo(layer);
-  });
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
-function TrackContent() {
-  const params = useSearchParams();
-  const fromQuery = params.get("from") || "";
-  const toQuery = params.get("to") || "";
-  const initialBusId = params.get("busId");
-
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [geoPoints, setGeoPoints] = useState<{ from?: any; to?: any }>({});
-  const [loading, setLoading] = useState(true);
-  const [selectedBus, setSelectedBus] = useState<any>(null);
-  const [busHistory, setBusHistory] = useState<Record<string, { lat: number; lon: number }[]>>({});
-
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const activeMarkersRef = useRef<{ [id: string]: L.Marker }>({});
-  const pathLayerRef = useRef<L.LayerGroup | null>(null);
-  const selectedBusPathRef = useRef<L.LayerGroup | null>(null);
-  const stopsLayerRef = useRef<L.LayerGroup | null>(null);
-
-  // ── Geocode source + destination ───────────────────────────────────────────
-  useEffect(() => {
-    if (!fromQuery || !toQuery) return;
-    (async () => {
-      try {
-        const f = await fetch("/api/geocode?q=" + encodeURIComponent(fromQuery));
-        const fd = await f.json();
-        await new Promise((r) => setTimeout(r, 500));
-        const t = await fetch("/api/geocode?q=" + encodeURIComponent(toQuery));
-        const td = await t.json();
-        setGeoPoints({
-          from: fd.success ? { lat: fd.lat, lon: fd.lon } : null,
-          to: td.success ? { lat: td.lat, lon: td.lon } : null,
-        });
-      } catch (_) {}
-    })();
-  }, [fromQuery, toQuery]);
-
-  // ── Live GTFS feed ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetch_ = async () => {
-      try {
-        const res = await fetch("/api/realtime/vehicle-positions");
-        const data = await res.json();
-        if (!data.success) return;
-
-        setVehicles(data.vehicles);
-
-        setBusHistory((prev) => {
-          const next = { ...prev };
-          data.vehicles.forEach((v: any) => {
-            if (!v.latitude || !v.longitude) return;
-            const id = v.id || v.tripId;
-            if (!id) return;
-            if (!next[id]) next[id] = [];
-            const last = next[id][next[id].length - 1];
-            if (!last || last.lat !== v.latitude || last.lon !== v.longitude) {
-              next[id] = [...next[id], { lat: v.latitude, lon: v.longitude }].slice(-50);
-            }
-          });
-          return next;
-        });
-
-        // Auto-select bus from deep-link
-        if (initialBusId) {
-          const target = data.vehicles.find(
-            (v: any) => v.id === initialBusId || v.tripId === initialBusId
-          );
-          if (target) {
-            setTimeout(() => {
-              const routeNum = target.routeId
-                ? String(target.routeId).replace(/(up|down)/i, "")
-                : "N/A";
-              const direction = /up/i.test(String(target.routeId))
-                ? "UP"
-                : /down/i.test(String(target.routeId))
-                ? "DOWN"
-                : "ACTIVE";
-              setSelectedBus((prev: any) =>
-                prev?.id === target.id
-                  ? prev
-                  : {
-                      ...target,
-                      routeNum,
-                      direction,
-                      address: "Pinpointing satellite location...",
-                      addressLoaded: false,
-                      timelineLoaded: false,
-                      timeline: [
-                        { status: "passed", time: "--:--", name: "Initializing..." },
-                        { status: "current", time: "--:--", name: "Locating bus..." },
-                      ],
-                      seats: { total: 45, occupied: 15 },
-                    }
-              );
-            }, 500);
-          }
-        }
-      } catch (_) {}
-      finally { setLoading(false); }
-    };
-    fetch_();
-    const id = setInterval(fetch_, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  // ── Corridor filter ───────────────────────────────────────────────────────
-  const filteredVehicles =
-    geoPoints.from && geoPoints.to
-      ? vehicles.filter((v) =>
-          isOnCorridor({ lat: v.latitude, lon: v.longitude }, geoPoints.from, geoPoints.to)
-        )
-      : vehicles;
-
-  // ── Init map ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapContainer.current || mapRef.current || loading) return;
-    const map = L.map(mapContainer.current, {
-      preferCanvas: true,
-      center: [28.6139, 77.209],
-      zoom: 10,
-    });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "&copy; CartoDB",
-      subdomains: "abcd",
-      maxZoom: 19,
-    }).addTo(map);
-    markersLayerRef.current = L.layerGroup().addTo(map);
-    mapRef.current = map;
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, [loading]);
-
-  // ── Base route corridor (blue) ────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !geoPoints.from || !geoPoints.to) return;
-    if (pathLayerRef.current) mapRef.current.removeLayer(pathLayerRef.current);
-
-    (async () => {
-      try {
-        const coords = `${geoPoints.from.lon},${geoPoints.from.lat};${geoPoints.to.lon},${geoPoints.to.lat}`;
-        const res = await fetch("/api/route-geometry?coords=" + coords);
-        const d = await res.json();
-        if (d.success && d.geometry) {
-          const geo = L.geoJSON(d.geometry, {
-            style: { color: "rgba(56,189,248,0.8)", weight: 6, opacity: 0.9, lineJoin: "round" },
-          });
-          const grp = L.layerGroup([geo]);
-          grp.addLayer(
-            L.circleMarker([geoPoints.from.lat, geoPoints.from.lon], {
-              color: "white", fillColor: "#fb792b", weight: 3, opacity: 1, fillOpacity: 1, radius: 8,
-            })
-          );
-          grp.addLayer(
-            L.circleMarker([geoPoints.to.lat, geoPoints.to.lon], {
-              color: "white", fillColor: "#10b981", weight: 3, opacity: 1, fillOpacity: 1, radius: 8,
-            })
-          );
-          grp.addTo(mapRef.current!);
-          pathLayerRef.current = grp;
-          mapRef.current!.fitBounds(geo.getBounds(), { padding: [50, 50] });
-        }
-      } catch (_) {}
-    })();
-  }, [geoPoints]);
-
-  // ── Selected bus: green trail + OSRM geometry + stop circles ─────────────
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    // Clear previous selection layer
-    if (selectedBusPathRef.current) {
-      mapRef.current.removeLayer(selectedBusPathRef.current);
-      selectedBusPathRef.current = null;
-    }
-
-    // Nothing selected → restore corridor, clear dots
-    if (!selectedBus) {
-      pathLayerRef.current?.eachLayer((l: any) => {
-        try { l.setStyle?.({ opacity: 0.9, fillOpacity: 1 }); } catch (_) {}
-      });
-      stopsLayerRef.current?.clearLayers();
-      return;
-    }
-
-    // Hide blue corridor completely to remove visual clutter when tracking a specific route
-    pathLayerRef.current?.eachLayer((l: any) => {
-      try { l.setStyle?.({ opacity: 0, fillOpacity: 0 }); } catch (_) {}
-    });
-
-    const group = L.layerGroup();
-
-    // 1. Breadcrumb trail (historic path)
-    // Style: Faint, dashed line to represent "past / completed"
-    const hist = busHistory[selectedBus.id];
-    if (hist && hist.length > 1) {
-      L.polyline(
-        hist.map((p) => [p.lat, p.lon] as [number, number]),
-        { color: "#9ca3af", weight: 4, dashArray: "5, 10", lineCap: "round" }
-      ).addTo(group);
-    }
-
-    // OSRM road geometry + stops
-    if (geoPoints.to) {
-      (async () => {
-        try {
-          const coords =
-            `${selectedBus.longitude},${selectedBus.latitude}` +
-            `;${geoPoints.to.lon},${geoPoints.to.lat}`;
-
-          // Active future track (Dynamic OSRM)
-          // Style: Vibrant brand blue to indicate active focus
-          const geoRes = await fetch("/api/route-geometry?coords=" + coords);
-          const geoData = await geoRes.json();
-          if (geoData.success && geoData.geometry) {
-            L.geoJSON(geoData.geometry, { style: { color: "#38bdf8", weight: 6, opacity: 1, lineJoin: "round" } }).addTo(group);
-          }
-
-          // Stops layer
-          if (!stopsLayerRef.current) {
-            stopsLayerRef.current = L.layerGroup().addTo(mapRef.current!);
-          }
-          stopsLayerRef.current.clearLayers();
-
-          if (!selectedBus.timelineLoaded) {
-            const stopsRes = await fetch(
-              "/api/gtfs-stops" +
-                "?tripId=" + encodeURIComponent(selectedBus.tripId || selectedBus.id) +
-                "&lat=" + selectedBus.latitude +
-                "&lon=" + selectedBus.longitude +
-                "&stopSequence=" + (selectedBus.stopSequence || 0) +
-                "&from=" + encodeURIComponent(fromQuery) +
-                "&to=" + encodeURIComponent(toQuery)
-            );
-            const td = await stopsRes.json();
-
-            if (td.success && td.stops) {
-              const now = new Date();
-              const mapped: any[] = td.stops.map((st: any, i: number) => {
-                let t = "--:--";
-                if (st.status === "passed")
-                  t = new Date(now.getTime() - (td.stops.length - i) * 60000).toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit",
-                  });
-                if (st.status === "current")
-                  t = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                if (st.status === "upcoming")
-                  t = new Date(now.getTime() + i * 3 * 60000).toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit",
-                  });
-                return { ...st, time: t };
-              });
-
-              setSelectedBus((prev: any) => ({ ...prev, timelineLoaded: true, timeline: mapped }));
-
-              // Render map circles so the road doesn't look barren
-              renderStopMarkers(mapped, stopsLayerRef.current!);
-
-              // Zoom to segment
-              if (td.segmentBounds?.from && td.segmentBounds?.to && mapRef.current) {
-                const { from: sf, to: sd } = td.segmentBounds;
-                const b = L.latLngBounds([sf.lat, sf.lon], [sd.lat, sd.lon]);
-                if (b.isValid()) mapRef.current.fitBounds(b, { padding: [60, 60] });
-              }
-            }
-          } else if (selectedBus.timeline) {
-            // Re-render markers if already in state
-            renderStopMarkers(selectedBus.timeline, stopsLayerRef.current!);
-          }
-        } catch (_) {}
-      })();
-    }
-
-    selectedBusPathRef.current = group.addTo(mapRef.current);
-  }, [selectedBus, busHistory, geoPoints.to]);
-
-  // ── Bus markers ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !markersLayerRef.current) return;
-    const layer = markersLayerRef.current;
-    const activeIds = new Set<string>();
-
-    filteredVehicles.forEach((v) => {
-      if (!v.latitude || !v.longitude) return;
-      const id = String(v.id || v.tripId || Math.random());
-      activeIds.add(id);
-
-      const routeNum = v.routeId ? String(v.routeId).replace(/(up|down)/i, "") : "N/A";
-      const direction = /up/i.test(String(v.routeId)) ? "UP" : /down/i.test(String(v.routeId)) ? "DOWN" : "ACTIVE";
-      const isSelected = selectedBus?.id === v.id;
-
-      const tooltip =
-        '<div style="font-family:inherit;padding:2px">' +
-        '<div style="font-weight:800;font-size:14px;color:' + (isSelected ? "#22c55e" : "#fb792b") + '">' +
-        "🚌 Bus " + (v.id || "Unknown") + "</div>" +
-        '<div style="font-size:12px;margin-top:2px">Route ' + routeNum +
-        ' <span style="font-size:10px;background:#eee;padding:1px 4px;border-radius:4px">' + direction + "</span></div>" +
-        '<div style="font-size:11px;color:#888;margin-top:4px">Click to track</div></div>';
-
-      const icon = L.divIcon({
-        html:
-          '<div style="background:' + (isSelected ? "#38bdf8" : "#fb792b") + ";" +
-          "border:" + (isSelected ? "4px" : "2px") + " solid white;" +
-          "box-shadow: 0 4px 10px rgba(0,0,0,0.5);" +
-          "border-radius:50%;" +
-          "width:" + (isSelected ? "20px" : "12px") + ";" +
-          "height:" + (isSelected ? "20px" : "12px") + ";" +
-          "opacity:" + (selectedBus && !isSelected ? "0.3" : "1") + ";" +
-          "transition:all 0.3s ease;" +
-          "margin-left:" + (isSelected ? "-10px" : "-6px") + ";" +
-          'margin-top:' + (isSelected ? "-10px" : "-6px") + '"></div>',
-        className: "leaflet-smooth-marker",
-      });
-
-      let marker = activeMarkersRef.current[id];
-      if (!marker) {
-        marker = L.marker([v.latitude, v.longitude], { icon, zIndexOffset: isSelected ? 1000 : 0 })
-          .bindTooltip(tooltip, { direction: "top", offset: [0, -10] })
-          .on("click", (e) => {
-            L.DomEvent.stopPropagation(e);
-            if (selectedBus?.id === v.id) {
-              setSelectedBus(null);
-              stopsLayerRef.current?.clearLayers();
-              return;
-            }
-            const seats = 45;
-            const occ = Math.floor((Math.random() * 0.4 + 0.6) * seats);
-            setSelectedBus({
-              ...v, routeNum, direction,
-              address: "Pinpointing satellite location...", addressLoaded: false,
-              timelineLoaded: false,
-              timeline: [
-                { status: "passed", time: "--:--", name: "Scanning topology..." },
-                { status: "current", time: "--:--", name: "Connecting to bus..." },
-              ],
-              seats: { total: seats, occupied: occ },
-            });
-          });
-        marker.addTo(layer);
-        activeMarkersRef.current[id] = marker;
-      } else {
-        marker.setIcon(icon);
-        marker.setLatLng([v.latitude, v.longitude]);
-        marker.setTooltipContent(tooltip);
-        marker.setZIndexOffset(isSelected ? 1000 : 0);
-      }
-    });
-
-    // Purge stale markers
-    Object.keys(activeMarkersRef.current).forEach((id) => {
-      if (!activeIds.has(id)) {
-        layer.removeLayer(activeMarkersRef.current[id]);
-        delete activeMarkersRef.current[id];
-      }
-    });
-  }, [filteredVehicles, selectedBus]);
-
-  // ── Reverse geocode on click ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedBus || selectedBus.addressLoaded) return;
-    fetch(`/api/geocode?lat=${selectedBus.latitude}&lon=${selectedBus.longitude}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setSelectedBus((prev: any) => {
-          if (prev?.id !== selectedBus.id) return prev;
-          return { ...prev, address: d.success ? d.name : "Location untraceable", addressLoaded: true };
-        });
-      })
-      .catch(() => {});
-  }, [selectedBus]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4">
-        <Loader2 className="h-10 w-10 text-brand-500 animate-spin" />
-        <p className="text-gray-500">Connecting to Live GTFS Network...</p>
+// Load map with SSR disabled
+const TrackingMap = dynamic(
+  () => import("@/components/tracking/TrackingMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ height: "320px" }} className="bg-gray-100 rounded-xl flex items-center justify-center">
+        <p className="text-gray-400 text-sm">Loading map…</p>
       </div>
-    );
+    ),
   }
+);
 
+// ── Crowd badge ───────────────────────────────────────────────────────────────
+function CrowdBadge({ level }: { level: string }) {
+  const cfg: Record<string, { label: string; cls: string }> = {
+    LOW:       { label: "Low crowd",    cls: "bg-green-100 text-green-700"   },
+    MEDIUM:    { label: "Moderate",     cls: "bg-yellow-100 text-yellow-700" },
+    HIGH:      { label: "High crowd",   cls: "bg-orange-100 text-orange-700" },
+    VERY_HIGH: { label: "Very crowded", cls: "bg-red-100 text-red-700"       },
+  };
+  const { label, cls } = cfg[level] ?? { label: level, cls: "bg-gray-100 text-gray-700" };
+  return <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${cls}`}>{label}</span>;
+}
+
+// ── Occupancy bar ─────────────────────────────────────────────────────────────
+function OccupancyBar({ occupied, capacity }: { occupied: number; capacity: number }) {
+  const pct = Math.min(100, Math.round((occupied / capacity) * 100));
+  const color = pct < 50 ? "bg-green-500" : pct < 75 ? "bg-yellow-500" : pct < 90 ? "bg-orange-500" : "bg-red-500";
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <style dangerouslySetInnerHTML={{ __html: ".leaflet-smooth-marker{transition:transform 4.8s linear}" }} />
-
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            {fromQuery} <span className="text-brand-400">→</span> {toQuery}
-          </h1>
-          <p className="text-sm text-green-600 font-bold mt-1 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            {filteredVehicles.length} buses on corridor
-          </p>
-        </div>
-        <div className="bg-brand-50 px-4 py-2 rounded-lg border border-brand-100 flex flex-col items-end">
-          <span className="text-xs text-brand-500 font-bold uppercase tracking-wider">Tracked Vehicles</span>
-          <span className="text-2xl font-black text-brand-700 leading-none">{filteredVehicles.length}</span>
-        </div>
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>{occupied} / {capacity} passengers</span>
+        <span>{pct}%</span>
       </div>
-
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Map */}
-        <div className="flex-1 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[620px] relative">
-          <div ref={mapContainer} className="w-full h-full" />
-          {!geoPoints.from && !geoPoints.to && (
-            <div className="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 text-yellow-800 p-3 rounded-lg text-sm z-[1000] shadow-md">
-              ⚠️ <strong>Showing all buses</strong> — geocoding unavailable or rate-limited.
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="w-full lg:w-96">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm max-h-[620px] overflow-y-auto">
-            {selectedBus ? (
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-black text-2xl text-gray-800">Bus {selectedBus.id}</h3>
-                    <p className="text-brand-600 font-bold flex items-center gap-1">
-                      <MapPin className="w-4 h-4" /> Route {selectedBus.routeNum}
-                    </p>
-                  </div>
-                  <span className="bg-brand-100 text-brand-700 font-bold text-xs px-3 py-1 rounded-full uppercase">
-                    {selectedBus.direction}
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Position */}
-                  <div className="bg-gray-50 border border-gray-100 p-3 rounded-xl">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">
-                      Active Ground Position
-                    </span>
-                    {selectedBus.addressLoaded ? (
-                      <span className="text-gray-800 font-medium leading-tight">{selectedBus.address}</span>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Translating coordinates...
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Speed + Status */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl">
-                      <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-1">
-                        Current Speed
-                      </span>
-                      <span className="text-blue-900 font-black text-xl">
-                        {selectedBus.speed ? Math.round(selectedBus.speed * 3.6) + " km/h" : "Moving"}
-                      </span>
-                    </div>
-                    <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl">
-                      <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-1">
-                        Occupancy
-                      </span>
-                      <span className="text-orange-900 font-black text-xl">
-                        {selectedBus.seats?.occupied}/{selectedBus.seats?.total}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Timeline */}
-                  <div className="bg-white border border-gray-100 p-4 rounded-xl pb-4">
-                    <h4 className="text-gray-800 font-black text-sm uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-                      Live Timeline
-                    </h4>
-                    <div className="relative pl-3">
-                      {selectedBus.timeline?.map((stop: any, i: number, arr: any[]) => (
-                        <div key={i} className="relative flex items-center py-2.5">
-                          {i < arr.length - 1 && (
-                            <div
-                              className="absolute left-0 top-1/2 bottom-[-50%] w-[3px] -ml-[1.5px]"
-                              style={{
-                                background: stop.status === "passed" ? "#d1d5db" : "#22c55e",
-                                zIndex: 0,
-                              }}
-                            />
-                          )}
-                          <div
-                            className="absolute left-0 rounded-full z-10 bg-white"
-                            style={{
-                              transform: "translateX(-50%)",
-                              width: stop.status === "current" ? "16px" : "12px",
-                              height: stop.status === "current" ? "16px" : "12px",
-                              border:
-                                stop.status === "passed"
-                                  ? "3px solid #d1d5db"
-                                  : stop.status === "current"
-                                  ? "4px solid #3b82f6"
-                                  : "3px solid #22c55e",
-                            }}
-                          />
-                          <div className="ml-5 flex items-center gap-1 flex-1">
-                            <span
-                              className="text-[11px] font-bold w-12"
-                              style={{ color: stop.status === "current" ? "#2563eb" : "#9ca3af" }}
-                            >
-                              {stop.time}
-                            </span>
-                            <span
-                              className="text-[13px] leading-tight pr-2"
-                              style={{
-                                fontWeight: stop.status === "current" ? 900 : stop.status === "passed" ? 400 : 700,
-                                color:
-                                  stop.status === "current"
-                                    ? "#1e40af"
-                                    : stop.status === "passed"
-                                    ? "#9ca3af"
-                                    : "#1f2937",
-                              }}
-                            >
-                              {stop.name}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 p-6 space-y-3 min-h-[300px]">
-                <Info className="w-12 h-12 text-gray-200" />
-                <p className="font-medium text-gray-500">Select a bus on the map to view its live route details.</p>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className={`h-2 rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
 }
 
+// ── Resolve GTFS vehicle ID or numeric ID to a DB bus ID ─────────────────────
+async function resolveDbBusId(rawId: string): Promise<number | null> {
+  // If it's already a plain integer, use it directly
+  const asInt = parseInt(rawId, 10);
+  if (!isNaN(asInt) && String(asInt) === rawId) return asInt;
+
+  // Try to match by busNumber (GTFS IDs often look like DL1PD6734)
+  try {
+    const res = await fetch(`/api/buses/resolve?id=${encodeURIComponent(rawId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.busId) return data.busId;
+    }
+  } catch {}
+
+  return null;
+}
+
+// ── Main tracking UI ──────────────────────────────────────────────────────────
+function TrackPageContent() {
+  const params = useSearchParams();
+  const router = useRouter();
+
+  const rawBusId = params.get("busId") || "";
+  const fromQuery = params.get("from") || "";
+  const toQuery   = params.get("to")   || "";
+
+  const [dbBusId, setDbBusId]       = useState<number | null>(null);
+  const [resolving, setResolving]   = useState(true);
+  const [resolveErr, setResolveErr] = useState(false);
+
+  // Resolve the raw busId → DB integer ID
+  useEffect(() => {
+    if (!rawBusId) { setResolving(false); setResolveErr(true); return; }
+    resolveDbBusId(rawBusId).then((id) => {
+      if (id) setDbBusId(id);
+      else setResolveErr(true);
+      setResolving(false);
+    });
+  }, [rawBusId]);
+
+  const { busData, isLoading, error, refresh } = useBusTracking(dbBusId ?? 0);
+  const skipFetch = !dbBusId;
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (resolving || (dbBusId && isLoading)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
+        <p className="text-gray-500 text-sm">
+          {resolving ? "Resolving bus ID…" : "Connecting to live bus feed…"}
+        </p>
+      </div>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────────────────────────
+  if (resolveErr || error || !busData) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-24 flex flex-col items-center gap-5 text-center">
+        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h2 className="text-xl font-black text-gray-800">Tracking Unavailable</h2>
+        <p className="text-gray-500 text-sm">
+          {resolveErr
+            ? `Bus "${rawBusId}" was not found in the system.`
+            : (error ?? "Bus data could not be loaded.")}
+        </p>
+        <div className="flex gap-3 flex-wrap justify-center">
+          {!resolveErr && (
+            <button onClick={refresh}
+              className="flex items-center gap-2 bg-brand-600 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-brand-700 transition-colors text-sm">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </button>
+          )}
+          <button onClick={() => router.back()}
+            className="flex items-center gap-2 border border-gray-200 text-gray-600 font-bold px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm">
+            <ArrowLeft className="w-4 h-4" /> Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const {
+    busNumber, routeNumber, routeName, authority,
+    position, currentStopName, nextStopName,
+    distanceToNextKm, etaToNextStopMin,
+    occupancy, capacity, crowdLevel,
+    speedKmh, delayMin, allStops, lastUpdated,
+  } = busData;
+
+  return (
+    <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => router.back()}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Go back">
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-black text-gray-800 truncate">
+            Bus {busNumber} — Route {routeNumber}
+          </h1>
+          <p className="text-xs text-gray-500 truncate">
+            {fromQuery && toQuery ? `${fromQuery} → ${toQuery}` : routeName} · {authority}
+          </p>
+        </div>
+        <button onClick={refresh}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Refresh">
+          <RefreshCw className="w-4 h-4 text-gray-500" />
+        </button>
+      </div>
+
+      {/* Map */}
+      <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+        <TrackingMap
+          position={position}
+          busNumber={busNumber}
+          allStops={allStops}
+          routeNumber={routeNumber}
+        />
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { icon: <Navigation className="w-4 h-4" />, label: "Speed",        value: `${speedKmh} km/h`,                                  cls: "text-blue-700"   },
+          { icon: <Clock       className="w-4 h-4" />, label: "ETA Next",     value: `${etaToNextStopMin} min`,                            cls: "text-green-700"  },
+          { icon: <MapPin      className="w-4 h-4" />, label: "Distance",     value: `${distanceToNextKm} km`,                             cls: "text-orange-700" },
+          { icon: <Zap        className="w-4 h-4" />, label: "Delay",        value: delayMin === 0 ? "On time" : `+${delayMin} min`,      cls: delayMin === 0 ? "text-green-700" : "text-red-700" },
+        ].map(({ icon, label, value, cls }) => (
+          <div key={label} className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+            <div className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide mb-1 ${cls}`}>
+              {icon} {label}
+            </div>
+            <p className={`text-lg font-black ${cls}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Current & next stop */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <Bus className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Currently At</p>
+            <p className="font-black text-gray-800 truncate">{currentStopName}</p>
+          </div>
+          <CrowdBadge level={crowdLevel} />
+        </div>
+
+        <div className="border-t border-dashed border-gray-200 pt-4 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <MapPin className="w-4 h-4 text-green-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Next Stop</p>
+            <p className="font-black text-gray-800 truncate">{nextStopName}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min away</p>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-gray-400" />
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Occupancy</p>
+          </div>
+          <OccupancyBar occupied={occupancy} capacity={capacity} />
+        </div>
+      </div>
+
+      {/* Route timeline */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-800 text-sm uppercase tracking-wider">Route Timeline</h2>
+        </div>
+        <div className="px-5 py-4 space-y-0">
+          {allStops.map((stop, i) => {
+            const isPassed  = stop.status === "DEPARTED";
+            const isCurrent = stop.status === "CURRENT";
+            const isLast    = i === allStops.length - 1;
+            return (
+              <div key={stop.sequence} className="flex gap-3 relative">
+                {!isLast && (
+                  <div className="absolute left-[9px] top-5 bottom-0 w-0.5"
+                    style={{ background: isPassed ? "#e5e7eb" : isCurrent ? "#22c55e" : "#dbeafe" }} />
+                )}
+                <div className="flex-shrink-0 mt-0.5 z-10" style={{ width: 20 }}>
+                  <div className="rounded-full border-2 bg-white" style={{
+                    width:       isCurrent ? 18 : 14,
+                    height:      isCurrent ? 18 : 14,
+                    marginLeft:  isCurrent ? 0 : 2,
+                    borderColor: isPassed ? "#d1d5db" : isCurrent ? "#3b82f6" : "#93c5fd",
+                    background:  isCurrent ? "#3b82f6" : isPassed ? "#f3f4f6" : "#eff6ff",
+                    boxShadow:   isCurrent ? "0 0 0 4px rgba(59,130,246,0.15)" : "none",
+                  }} />
+                </div>
+                <div className={`pb-4 flex-1 flex items-start justify-between min-w-0 ${isLast ? "pb-0" : ""}`}>
+                  <p className="text-sm leading-snug truncate pr-2" style={{
+                    color:      isPassed ? "#9ca3af" : isCurrent ? "#1d4ed8" : "#1f2937",
+                    fontWeight: isCurrent ? 900 : isPassed ? 400 : 600,
+                  }}>
+                    {stop.stopName}
+                    {isCurrent && <span className="ml-1.5 text-[9px] bg-blue-100 text-blue-600 rounded px-1 font-bold uppercase align-middle">Here</span>}
+                    {i === 0    && <span className="ml-1.5 text-[9px] bg-orange-100 text-orange-600 rounded px-1 font-bold uppercase align-middle">Origin</span>}
+                    {isLast     && <span className="ml-1.5 text-[9px] bg-green-100 text-green-600 rounded px-1 font-bold uppercase align-middle">Dest</span>}
+                  </p>
+                  <span className="text-[11px] text-gray-400 font-mono flex-shrink-0">
+                    {stop.etaFromNowMin != null ? `+${stop.etaFromNowMin} min` : isPassed ? "✓" : ""}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400">
+        Last updated: {new Date(lastUpdated).toLocaleTimeString("en-IN", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+        })} · Auto-refreshes every 4s
+      </p>
+    </main>
+  );
+}
+
 export default function TrackPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
-        </div>
-      }
-    >
-      <TrackContent />
+    <Suspense fallback={
+      <div className="flex justify-center py-32">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
+      </div>
+    }>
+      <TrackPageContent />
     </Suspense>
   );
 }

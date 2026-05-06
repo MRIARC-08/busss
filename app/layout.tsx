@@ -8,8 +8,8 @@ import { AppProviders } from "@/components/providers/AppProviders";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Smart Bus Navigator | Multi-City Government Transport",
-  description: "Intelligent government bus routing and decision support system",
+  title: "Where Is My Bus | Live Delhi NCR Bus Tracker",
+  description: "Track government buses live across Delhi, Haryana, UP and Punjab. Find routes, check fares, view passenger counts and get real-time bus locations.",
 };
 
 export default function RootLayout({

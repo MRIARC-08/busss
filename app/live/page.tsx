@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
+const L = typeof window !== "undefined" ? require("leaflet") : null;
 import "leaflet/dist/leaflet.css";
 import { Navigation2, Activity } from "lucide-react";
 

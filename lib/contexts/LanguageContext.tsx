@@ -23,7 +23,7 @@ const translations: Translations = {
     "nav.buses": "BUSES",
     "nav.meals": "MEALS",
     
-    "hero.bookTicket": "BOOK TICKET",
+    "hero.bookTicket": "Look for routes",
     "hero.from": "From",
     "hero.to": "To",
     "hero.date": "DD/MM/YYYY *",

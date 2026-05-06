@@ -7,15 +7,25 @@ export async function GET() {
   try {
     const token = cookies().get("token")?.value;
     if (!token) return NextResponse.json({ user: null });
-    
+
     const decoded = verifyToken(token) as any;
-    if (!decoded) return NextResponse.json({ user: null });
-    
+    if (!decoded?.id) return NextResponse.json({ user: null });
+
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!user) return NextResponse.json({ user: null });
-    
-    return NextResponse.json({ user: { id: user.id, firstName: user.firstName, lastName: user.lastName, mobile: user.mobile } });
-  } catch (error) {
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        mobile: user.mobile,
+        age: user.age,
+        // Never expose aadhaar or password
+        createdAt: user.createdAt,
+      },
+    });
+  } catch {
     return NextResponse.json({ user: null });
   }
 }

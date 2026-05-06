@@ -63,18 +63,27 @@ export default function HeroSearchBox() {
 
   function handleSearch() {
     setError("");
-    
+
     if (!user) {
       setShowAuth(true);
       return;
     }
-    
-    if (!from.trim() || !to.trim()) {
+
+    const fromClean = from.trim();
+    const toClean = to.trim();
+
+    if (!fromClean || !toClean) {
       setError("Please enter both From and To locations.");
       return;
     }
+
+    if (fromClean.toLowerCase() === toClean.toLowerCase()) {
+      setError("Origin and destination cannot be the same stop. Please choose two different locations.");
+      return;
+    }
+
     router.push(
-      `/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      `/search?from=${encodeURIComponent(fromClean)}&to=${encodeURIComponent(toClean)}`
     );
   }
 
@@ -185,31 +194,8 @@ export default function HeroSearchBox() {
         </div>
 
         {/* Quota */}
-        <div className="relative border border-gray-300 rounded p-2 focus-within:border-blue-500 flex items-center mt-2 bg-gray-50">
-          <LayoutGrid className="h-5 w-5 text-brand-700 mr-2" />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full focus:outline-none text-brand-900 font-bold bg-transparent appearance-none uppercase">
-            <option>{t("hero.general")}</option>
-            <option>LADIES</option>
-            <option>SENIOR CITIZEN</option>
-          </select>
-        </div>
-
-        {/* Options */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 text-sm text-[#213d77] font-bold">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked={options.disability} onChange={(e) => setOptions({...options, disability: e.target.checked})} className="mt-1" />
-            <span className="leading-tight">{t("hero.disability")}</span>
-          </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked={options.flexible} onChange={(e) => setOptions({...options, flexible: e.target.checked})} className="mt-1" />
-            <span className="leading-tight">{t("hero.flexible")}</span>
-          </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked={options.pass} onChange={(e) => setOptions({...options, pass: e.target.checked})} className="mt-1" />
-            <span className="leading-tight">{t("hero.pass")}</span>
-          </label>
-        </div>
-
+       
+     
         {/* Search Engine */}
         <div className="mt-4 flex justify-between items-center">
           <button

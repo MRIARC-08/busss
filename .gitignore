@@ -27,8 +27,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# local env files — add secrets to Vercel dashboard instead
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -37,8 +42,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# End of https://www.toptal.com/developers/gitignore/api/nextjs
-
-node_modules
-.next
-.envnode_modules/
+# SQLite database (not supported on Vercel — use PostgreSQL)
+prisma/dev.db
+prisma/*.db
+prisma/*.db-journal

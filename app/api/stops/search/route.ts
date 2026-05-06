@@ -1,7 +1,6 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   try {
@@ -16,16 +15,16 @@ export async function GET(req: Request) {
       where: {
         name: {
           contains: q,
-          // note: sqlite does not support mode: "insensitive" natively in Prisma mostly, but `contains` is functionally okay for ASCII or simple matches.
-        }
+          mode: "insensitive", // PostgreSQL case-insensitive search
+        },
       },
       take: 10,
       select: {
-        name: true
-      }
+        name: true,
+      },
     });
 
-    const stopNames = stops.map(s => s.name);
+    const stopNames = stops.map((s) => s.name);
     return NextResponse.json({ stops: stopNames });
   } catch (error) {
     console.error("Stop Search Error:", error);

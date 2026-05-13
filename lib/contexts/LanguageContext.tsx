@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 type Language = "en" | "hi";
 
@@ -111,23 +111,38 @@ const translations: Translations = {
   }
 };
 
+type FontSize = "small" | "normal" | "large";
+
 type LanguageContextType = {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
+  fontSize: FontSize;
+  setFontSize: (size: FontSize) => void;
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
+  const [fontSize, setFontSize] = useState<FontSize>("normal");
+
+  // Apply font size to <html> root so all rem-based sizes scale
+  useEffect(() => {
+    const sizeMap: Record<FontSize, string> = {
+      small:  "14px",
+      normal: "16px",
+      large:  "18px",
+    };
+    document.documentElement.style.fontSize = sizeMap[fontSize];
+  }, [fontSize]);
 
   const t = (key: string) => {
     return translations[language][key] || key;
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, fontSize, setFontSize }}>
       {children}
     </LanguageContext.Provider>
   );

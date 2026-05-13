@@ -104,7 +104,7 @@ function UserDropdown({ user, logout }: { user: { firstName: string; lastName: s
 // ─── Main Navbar ─────────────────────────────────────────────────────────────
 export default function Navbar() {
   const pathname = usePathname();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage, fontSize, setFontSize } = useLanguage();
   const { user, logout } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
@@ -126,15 +126,24 @@ export default function Navbar() {
               <LiveClock />
             </span>
             <div className="flex items-center gap-1.5" role="group" aria-label="Font size controls">
-              {[["A-", "small"], ["A", "normal"], ["A+", "large"]].map(([label]) => (
-                <button
-                  key={label}
-                  aria-label={`Text size ${label}`}
-                  className="cursor-pointer hover:text-white px-1 rounded focus:outline-none focus:ring-1 focus:ring-white"
-                >
-                  {label}
-                </button>
-              ))}
+              {(["A-", "A", "A+"] as const).map((label, i) => {
+                const sizes = ["small", "normal", "large"] as const;
+                const size  = sizes[i];
+                const active = fontSize === size;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => setFontSize(size)}
+                    aria-label={`Text size ${label}`}
+                    aria-pressed={active}
+                    className={`cursor-pointer px-1 rounded focus:outline-none focus:ring-1 focus:ring-white transition-colors ${
+                      active ? "text-white underline underline-offset-2" : "text-blue-300 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
             <button
               onClick={() => setLanguage(language === "en" ? "hi" : "en")}

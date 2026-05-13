@@ -54,7 +54,7 @@ const translations: Translations = {
     "features.liveSimDesc": "Real-time bus position tracking with arrival predictions",
     "features.crowdIntell": "Crowd Intelligence",
     "features.crowdIntellDesc": "Know crowd levels before you board — plan a comfortable journey",
-    "features.accountability": "Accountability",
+    "features.accountability": "Report",
     "features.accountabilityDesc": "Report issues directly and track government response",
 
     "routes.title": "Popular Routes Today",

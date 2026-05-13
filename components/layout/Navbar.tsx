@@ -111,9 +111,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus },
     { href: "/live", label: "Live Map", icon: MapPin },
-    { href: "/search", label: t("nav.findRoute"), icon: MapPin },
     { href: "/report", label: t("nav.report"), icon: AlertCircle },
-    { href: "/admin", label: t("nav.admin"), icon: LayoutDashboard },
   ];
 
   return (
@@ -167,9 +165,11 @@ export default function Navbar() {
                 {t("nav.loginRegister")}
               </button>
             )}
-            <Link href="/contact" className="hover:text-white text-blue-200 uppercase focus:outline-none focus:ring-1 focus:ring-white rounded px-1 hidden sm:inline">
+            <a href="/#contact"
+              className="hover:text-white text-blue-200 uppercase focus:outline-none focus:ring-1 focus:ring-white rounded px-1 hidden sm:inline"
+            >
               {t("nav.contactUs")}
-            </Link>
+            </a>
           </div>
         </div>
       </div>

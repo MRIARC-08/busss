@@ -59,24 +59,34 @@ export async function GET(request: Request) {
     const seed = from.length + to.length;
     let matchedBuses = vehicles.filter((v, i) => i % (seed % 10 + 2) === 0).slice(0, 20);
     
+    // ── Fixed fare per route (from+to), not per vehicle ───────────────────────
+    const routeHash     = (from + to).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const baseRouteFare = (routeHash % 26) + 15;          // ₹15–40 for this route
+    const acFare        = Math.round(baseRouteFare * 1.5);
+    // fromOffset: where the user's "from" stop sits in the route sequence
+    // Use a mid-range value so buses naturally split above/below it
+    const fromOffset    = (routeHash % 15) + 8;           // stable 8–22
+
     const processed = matchedBuses.map(v => {
-       const currentSeq = v.stopSequence || Math.floor(Math.random() * 25);
-       const fromOffset = Math.floor(Math.random() * 20) + 2; 
-       const toOffset = fromOffset + Math.floor(Math.random() * 10) + 2;
-       
-       let status = "upcoming";
-       if (currentSeq >= fromOffset) {
-          status = "departed";
-       }
-       
+       const currentSeq = v.stopSequence || 0;
+
+       // Buses before fromOffset are still approaching; at/after have passed
+       const status = currentSeq < fromOffset ? "upcoming" : "departed";
+
+       const vehicleHash = (v.id || "x").split("").reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0);
+       const isAC        = vehicleHash % 3 === 0;
+       const occupancy   = (vehicleHash % 35) + 5;
+       // ETA: stops away × ~4 min interval
+       const stopsAway   = Math.max(0, fromOffset - currentSeq);
+
        return {
          ...v,
          status,
-         etaToSource: Math.abs(fromOffset - currentSeq) * 4, // mock 4 mins per stop interval
-         isAC: Math.random() > 0.5,
-         fare: Math.floor(Math.random() * 30) + 15,
-         seats: 45,
-         occupancy: Math.floor(Math.random() * 45)
+         etaToSource: stopsAway * 4,
+         isAC,
+         fare:    isAC ? acFare : baseRouteFare,
+         seats:   45,
+         occupancy,
        };
     });
 

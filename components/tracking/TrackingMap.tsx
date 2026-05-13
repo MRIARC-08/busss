@@ -118,9 +118,10 @@ export default function TrackingMap({
       preferCanvas: true,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
+    L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+      attribution: "© Google Maps",
+      subdomains:  ["mt0", "mt1", "mt2", "mt3"],
+      maxZoom: 20,
     }).addTo(map);
 
     const busIcon = L.divIcon({
@@ -256,15 +257,30 @@ export default function TrackingMap({
       {/* Map container */}
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
 
-      {/* 🎯 Locate bus button — always on top */}
-      <button
-        onClick={locateBus}
-        title="Locate bus"
-        style={{ position: "absolute", bottom: 12, right: 12, zIndex: 1000 }}
-        className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50 active:scale-95 transition-all"
-      >
-        <span style={{ fontSize: 16 }}>🎯</span> Locate Bus
-      </button>
+      {/* Floating action buttons */}
+      <div style={{ position: "absolute", bottom: 12, right: 12, zIndex: 1000 }}
+        className="flex flex-col gap-2 items-end">
+
+        {/* 🎯 Locate bus */}
+        <button
+          onClick={locateBus}
+          title="Locate bus on map"
+          className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50 active:scale-95 transition-all"
+        >
+          <span style={{ fontSize: 16 }}>🎯</span> Locate Bus
+        </button>
+
+        {/* 🗺️ Open in Google Maps */}
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${snappedPosRef.current[0]},${snappedPosRef.current[1]}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open current position in Google Maps"
+          className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 text-sm font-bold text-green-700 hover:bg-green-50 active:scale-95 transition-all"
+        >
+          <span style={{ fontSize: 16 }}>🗺️</span> Google Maps
+        </a>
+      </div>
     </div>
   );
 }

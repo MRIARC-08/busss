@@ -5,10 +5,11 @@ import {
   LayoutDashboard, FileText, Bus, MapPin, Users,
   LogOut, Shield, RefreshCw, CheckCircle,
   Clock, AlertTriangle, XCircle, Loader2, Search,
-  ChevronDown, ChevronUp, X, User,
+  ChevronDown, ChevronUp, X, User, Menu, Star, Phone,
+  MessageSquare,
 } from "lucide-react";
 
-type Tab = "overview" | "reports" | "buses" | "routes" | "users";
+type Tab = "overview" | "reports" | "buses" | "routes" | "users" | "feedback";
 
 const statusColour: Record<string, string> = {
   OPEN:        "bg-red-100 text-red-700 border-red-200",
@@ -17,11 +18,81 @@ const statusColour: Record<string, string> = {
   CLOSED:      "bg-gray-100 text-gray-500 border-gray-200",
 };
 const severityColour: Record<string, string> = {
-  LOW:      "bg-blue-100 text-blue-700",
-  MEDIUM:   "bg-yellow-100 text-yellow-700",
-  HIGH:     "bg-orange-100 text-orange-700",
-  CRITICAL: "bg-red-100 text-red-700",
+  LOW:       "bg-blue-100 text-blue-700",
+  MEDIUM:    "bg-yellow-100 text-yellow-700",
+  HIGH:      "bg-orange-100 text-orange-700",
+  EMERGENCY: "bg-red-600 text-white",
+  CRITICAL:  "bg-red-100 text-red-700",
 };
+
+function FeedbackTab() {
+  const [items, setItems]   = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/feedback")
+      .then(r => r.json())
+      .then(d => { setItems(d.feedback ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const avg = items.length
+    ? (items.reduce((s, f) => s + f.rating, 0) / items.length).toFixed(1)
+    : "—";
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
+
+  if (items.length === 0) return (
+    <div className="text-center py-16 text-gray-400">
+      <Star className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+      <p className="font-medium">No feedback yet.</p>
+      <p className="text-sm mt-1">Passenger reviews will appear here once submitted.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+          <p className="text-4xl font-black text-amber-500">{avg}</p>
+          <div className="flex justify-center gap-0.5 my-1">
+            {[1,2,3,4,5].map(i=><Star key={i} className={`w-4 h-4 ${i<=Math.round(Number(avg))?"fill-amber-400 text-amber-400":"text-gray-200"}`}/>)}
+          </div>
+          <p className="text-xs text-gray-500 font-medium">Average Rating</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+          <p className="text-4xl font-black text-blue-600">{items.length}</p>
+          <p className="text-xs text-gray-500 font-medium mt-2">Total Reviews</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+          <p className="text-4xl font-black text-green-600">{items.filter(f=>f.rating>=4).length}</p>
+          <p className="text-xs text-gray-500 font-medium mt-2">Positive (4–5★)</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {items.map(f=>(
+          <div key={f.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-black text-sm flex-shrink-0">
+                  {f.name.split(" ").map((n: string)=>n[0]).join("").slice(0,2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">{f.name}</p>
+                  <p className="text-xs text-gray-400">{f.route || "App User"} · {new Date(f.createdAt).toLocaleDateString("en-IN")}</p>
+                </div>
+              </div>
+              <div className="flex gap-0.5 flex-shrink-0">
+                {[1,2,3,4,5].map(i=><Star key={i} className={`w-3.5 h-3.5 ${i<=f.rating?"fill-amber-400 text-amber-400":"text-gray-200"}`}/>)}
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mt-3 leading-relaxed">"{f.text}"</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, colour }: any) {
@@ -306,6 +377,7 @@ export default function AdminDashboard() {
   const [stats, setStats]       = useState<any>(null);
   const [authed, setAuthed]     = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   useEffect(() => {
     const t = sessionStorage.getItem("adminToken") ?? "";
@@ -321,23 +393,36 @@ export default function AdminDashboard() {
     router.replace("/admin");
   }
 
+  function switchTab(id: Tab) { setTab(id); setSidebarOpen(false); }
+
   if (!authed) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
-    { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "reports",  label: "Reports",  icon: FileText },
-    { id: "buses",    label: "Buses",    icon: Bus },
-    { id: "routes",   label: "Routes",   icon: MapPin },
-    { id: "users",    label: "Users",    icon: Users },
+    { id: "overview", label: "Overview",  icon: LayoutDashboard },
+    { id: "reports",  label: "Reports",   icon: FileText },
+    { id: "feedback", label: "Feedback",  icon: MessageSquare },
+    { id: "buses",    label: "Buses",     icon: Bus },
+    { id: "routes",   label: "Routes",    icon: MapPin },
+    { id: "users",    label: "Users",     icon: Users },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {selectedUser && <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col shrink-0 min-h-screen">
-        <div className="p-6 border-b border-white/10">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar — fixed on mobile overlay, static on desktop */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col
+        transform transition-transform duration-200
+        lg:static lg:translate-x-0 lg:shrink-0
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      `}>
+        <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
               <Shield className="w-5 h-5" />
@@ -347,16 +432,19 @@ export default function AdminDashboard() {
               <p className="text-[10px] text-slate-400 mt-0.5">Where Is My Bus</p>
             </div>
           </div>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id)}
+            <button key={id} onClick={() => switchTab(id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 tab === id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}>
               <Icon className="w-4 h-4" />
               {label}
-              {id === "reports" && stats?.openReports > 0 && (
+              {id === "reports" && (stats?.openReports ?? 0) > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.openReports}</span>
               )}
             </button>
@@ -371,43 +459,57 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 min-w-0 overflow-auto">
+        {/* Mobile topbar */}
+        <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-600" />
+            <span className="font-black text-gray-800 text-sm">Admin Panel</span>
+          </div>
+          <span className="ml-auto text-xs text-gray-400 capitalize">{tab}</span>
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-black text-gray-800 capitalize">{tab === "overview" ? "Dashboard Overview" : tab}</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-800 capitalize">
+            {tab === "overview" ? "Dashboard Overview" : tab === "feedback" ? "Passenger Feedback" : tab}
+          </h1>
           <p className="text-gray-500 text-sm mt-1">Where Is My Bus — Admin Control Panel</p>
         </div>
 
         {tab === "overview" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <StatCard label="Total Buses"      value={stats?.buses}       icon={Bus}           colour="bg-blue-100 text-blue-600" />
-              <StatCard label="Routes"            value={stats?.routes}      icon={MapPin}        colour="bg-purple-100 text-purple-600" />
-              <StatCard label="Registered Users"  value={stats?.users}       icon={Users}         colour="bg-green-100 text-green-600" />
-              <StatCard label="Total Reports"     value={stats?.reports}     icon={FileText}      colour="bg-orange-100 text-orange-600" />
-              <StatCard label="Open Reports"      value={stats?.openReports} icon={AlertTriangle} colour="bg-red-100 text-red-600" />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <StatCard label="Total Buses"     value={stats?.buses}       icon={Bus}           colour="bg-blue-100 text-blue-600" />
+              <StatCard label="Routes"           value={stats?.routes}      icon={MapPin}        colour="bg-purple-100 text-purple-600" />
+              <StatCard label="Users"            value={stats?.users}       icon={Users}         colour="bg-green-100 text-green-600" />
+              <StatCard label="Total Reports"    value={stats?.reports}     icon={FileText}      colour="bg-orange-100 text-orange-600" />
+              <StatCard label="Open Reports"     value={stats?.openReports} icon={AlertTriangle} colour="bg-red-100 text-red-600" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
-                { icon: CheckCircle, colour: "text-green-500", label: "Reports Resolved", desc: "All closed / resolved reports" },
-                { icon: Clock,       colour: "text-yellow-500", label: "In Progress",     desc: "Reports being actively handled" },
-                { icon: XCircle,     colour: "text-red-500",    label: "Open Issues",     desc: "Unreviewed user reports" },
+                { icon: CheckCircle, colour: "text-green-500",  label: "Reports Resolved", desc: "Closed / resolved reports" },
+                { icon: Clock,       colour: "text-yellow-500", label: "In Progress",      desc: "Reports being actively handled" },
+                { icon: XCircle,     colour: "text-red-500",    label: "Open Issues",      desc: "Unreviewed user reports" },
               ].map(({ icon: Icon, colour, label, desc }) => (
-                <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
-                  <Icon className={`w-8 h-8 ${colour}`} />
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3">
+                  <Icon className={`w-7 h-7 flex-shrink-0 ${colour}`} />
                   <div>
-                    <p className="font-black text-gray-800">{label}</p>
+                    <p className="font-black text-gray-800 text-sm">{label}</p>
                     <p className="text-xs text-gray-500">{desc}</p>
                   </div>
                 </div>
               ))}
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <p className="font-black text-gray-800 mb-1">Quick Navigation</p>
-              <p className="text-sm text-gray-500 mb-4">Jump to a management section using the sidebar on the left.</p>
-              <div className="flex gap-3 flex-wrap">
+              <p className="font-black text-gray-800 mb-3">Quick Navigation</p>
+              <div className="flex gap-2 flex-wrap">
                 {tabs.filter(t => t.id !== "overview").map(({ id, label, icon: Icon }) => (
-                  <button key={id} onClick={() => setTab(id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 border border-gray-200 hover:border-blue-200 rounded-xl text-sm font-medium transition-colors">
+                  <button key={id} onClick={() => switchTab(id)}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 border border-gray-200 hover:border-blue-200 rounded-xl text-sm font-medium transition-colors">
                     <Icon className="w-4 h-4" /> {label}
                   </button>
                 ))}
@@ -416,7 +518,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {tab === "reports" && <ReportsTab token={token} />}
+        {tab === "reports"  && <ReportsTab token={token} />}
+        {tab === "feedback" && <FeedbackTab />}
 
         {tab === "buses" && (
           <DataTab token={token} resource="buses" columns={[
@@ -463,6 +566,7 @@ export default function AdminDashboard() {
               { key: "view",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">View →</span> },
             ]} />
         )}
+        </div>{/* end inner padding div */}
       </main>
     </div>
   );

@@ -122,3 +122,12 @@ model User {
   password  String
   createdAt DateTime @default(now())
 }
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  name      String   @default("Anonymous")
+  rating    Int
+  text      String
+  route     String?
+  createdAt DateTime @default(now())
+}

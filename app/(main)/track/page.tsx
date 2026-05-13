@@ -92,7 +92,7 @@ function TrackPageContent() {
     });
   }, [rawBusId]);
 
-  const { busData, isLoading, error, refresh } = useBusTracking(dbBusId ?? 0);
+  const { busData, isLoading, error, refresh } = useBusTracking(dbBusId ?? 0, fromQuery, toQuery);
   const skipFetch = !dbBusId;
 
   // ── Loading ────────────────────────────────────────────────────────────────

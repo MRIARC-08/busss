@@ -44,13 +44,17 @@ function crowdLevel(occupancy: number, capacity: number): "LOW" | "MEDIUM" | "HI
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } }
 ) {
   const busId = parseInt(params.id, 10);
   if (isNaN(busId)) {
     return NextResponse.json({ error: "Invalid bus ID" }, { status: 400 });
   }
+
+  const url      = new URL(req.url);
+  const fromStop = url.searchParams.get("from")?.trim().toLowerCase() ?? "";
+  const toStop   = url.searchParams.get("to")?.trim().toLowerCase()   ?? "";
 
   let bus: any;
   try {
@@ -181,9 +185,40 @@ export async function GET(
     };
   });
 
+  // ── Slice allStops to the user's requested from→to segment ─────────────────
+  // Match stop names fuzzy (exact > partial) against the URL from/to params.
+  function findStopIdx(query: string, fallback: number): number {
+    if (!query) return fallback;
+    // 1. exact match
+    let idx = allStops.findIndex((s: any) => s.stopName.toLowerCase() === query);
+    if (idx !== -1) return idx;
+    // 2. stop name contains query
+    idx = allStops.findIndex((s: any) => s.stopName.toLowerCase().includes(query));
+    if (idx !== -1) return idx;
+    // 3. query contains stop name
+    idx = allStops.findIndex((s: any) => query.includes(s.stopName.toLowerCase()));
+    if (idx !== -1) return idx;
+    return fallback;
+  }
+
+  // Default: start from current segment, end at last stop
+  const defaultStart = segmentIndex;
+  const defaultEnd   = allStops.length - 1;
+
+  let startIdx = findStopIdx(fromStop, defaultStart);
+  let endIdx   = findStopIdx(toStop,   defaultEnd);
+
+  // Ensure valid order
+  if (startIdx > endIdx) [startIdx, endIdx] = [endIdx, startIdx];
+  // Never go before current position if from wasn't matched
+  if (!fromStop) startIdx = Math.min(startIdx, segmentIndex);
+
+  const slicedStops = allStops.slice(startIdx, endIdx + 1);
+
   console.log(
     `[SIM] Bus ${busId} | Seg ${segmentIndex} | Progress ${sim.progressPct.toFixed(1)}% | ` +
-    `Speed ${speedKmh}kmh | ETA next ${Math.round(etaToNextStopMin)}min`
+    `Speed ${speedKmh}kmh | ETA next ${Math.round(etaToNextStopMin)}min | ` +
+    `Slice ${startIdx}→${endIdx} (${slicedStops.length} stops)`
   );
 
   return NextResponse.json({
@@ -198,14 +233,14 @@ export async function GET(
     currentStopName:  curStart.stopName,
     nextStopName:     curEnd.stopName,
     distanceToNextKm: parseFloat(remainingKm.toFixed(2)),
-    etaToNextStopMin: parseFloat(etaToNextStopMin.toFixed(1)), // FIXED: 1 decimal so stat card shows countdown
+    etaToNextStopMin: parseFloat(etaToNextStopMin.toFixed(1)),
     occupancy:        sim.occupancy,
     capacity:         bus.capacity,
     crowdLevel:       crowdLevel(sim.occupancy, bus.capacity),
     status:           "ON_ROUTE",
     delayMin:         sim.delayMin,
     speedKmh,
-    allStops,
+    allStops:         slicedStops,   // ← already sliced to from→to segment
     lastUpdated:      new Date().toISOString(),
   });
 }

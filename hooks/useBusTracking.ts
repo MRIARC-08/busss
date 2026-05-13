@@ -36,16 +36,24 @@ export interface BusTrackingData {
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-export function useBusTracking(busId: string | number) {
+export function useBusTracking(
+  busId: string | number,
+  fromStop?: string,
+  toStop?: string,
+) {
   const [busData, setBusData]   = useState<BusTrackingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const intervalRef             = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!busId || busId === 0 || busId === "0") return; // not resolved yet
+    if (!busId || busId === 0 || busId === "0") return;
     try {
-      const res = await fetch(`/api/buses/track/${busId}`, { cache: "no-store" });
+      const params = new URLSearchParams();
+      if (fromStop) params.set("from", fromStop);
+      if (toStop)   params.set("to",   toStop);
+      const qs  = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/buses/track/${busId}${qs}`, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${res.status}`);
@@ -58,7 +66,7 @@ export function useBusTracking(busId: string | number) {
     } finally {
       setIsLoading(false);
     }
-  }, [busId]);
+  }, [busId, fromStop, toStop]);
 
   useEffect(() => {
     fetchData();

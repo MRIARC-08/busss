@@ -110,7 +110,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus },
-    { href: "/live", label: "Live GTFS Map", icon: MapPin },
+    { href: "/live", label: "Live Map", icon: MapPin },
     { href: "/search", label: t("nav.findRoute"), icon: MapPin },
     { href: "/report", label: t("nav.report"), icon: AlertCircle },
     { href: "/admin", label: t("nav.admin"), icon: LayoutDashboard },

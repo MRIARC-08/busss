@@ -121,8 +121,8 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const [fields, setFields] = useState({
-    mobile: "",
-    password: "",
+    mobile: "9999999999",
+    password: "password123",
     firstName: "",
     lastName: "",
     age: "",
@@ -209,7 +209,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
     setSuccess("");
     setTouched({});
     setFieldErrors({});
-    setFields({ mobile: "", password: "", firstName: "", lastName: "", age: "", aadhaar: "" });
+    setFields({ mobile: isLogin ? "" : "9999999999", password: isLogin ? "" : "password123", firstName: "", lastName: "", age: "", aadhaar: "" });
   };
 
   const fe = fieldErrors;
@@ -330,7 +330,9 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
 
           {isLogin && (
             <p className="mt-2 text-center text-xs text-gray-400">
-              Demo: mobile <strong>9999999999</strong> / password <strong>password123</strong>
+              <span className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg px-3 py-1.5 font-medium">
+                Demo credentials are pre-filled — just click Sign In
+              </span>
             </p>
           )}
         </div>

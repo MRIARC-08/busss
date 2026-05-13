@@ -250,7 +250,8 @@ export default function TrackingMap({
   }, []);
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", height: "320px", width: "100%" }}
+    <div ref={wrapperRef}
+      style={{ position: "relative", height: "320px", width: "100%", isolation: "isolate" }}
       className="rounded-xl overflow-hidden">
       {/* Map container */}
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />

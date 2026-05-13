@@ -117,7 +117,7 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="bg-brand-700 text-white shadow-lg sticky top-0 z-50" aria-label="Main navigation">
+    <nav className="bg-brand-700 text-white shadow-lg sticky top-0 z-[200]" aria-label="Main navigation">
       {/* Top utility bar */}
       <div className="bg-brand-800 text-xs py-1.5 border-b border-brand-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center gap-4">

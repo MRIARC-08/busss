@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import "leaflet/dist/leaflet.css";
 
-// ── Fix Leaflet default icon paths ────────────────────────────────────────────
 if (typeof window !== "undefined") {
   const L = require("leaflet");
   delete L.Icon.Default.prototype._getIconUrl;
@@ -14,77 +13,63 @@ if (typeof window !== "undefined") {
   });
 }
 
-// ── Module-level cache keyed by "routeNumber:startIdx:endIdx" ────────────────
-const routeGeometryCache = new Map<string, Array<{ lat: number; lon: number }>>();
+// ── Cache: routeNumber:startIdx:endIdx → road geometry ───────────────────────
+const routeGeometryCache = new Map<string, [number, number][]>();
 
-// ── OSRM fetch with straight-line fallback ────────────────────────────────────
+// ── OSRM road path ─────────────────────────────────────────────────────────────
 async function fetchRoadPath(
   stops: Array<{ latitude: number; longitude: number }>
-): Promise<Array<{ lat: number; lon: number }>> {
-  if (stops.length < 2) return stops.map(s => ({ lat: s.latitude, lon: s.longitude }));
+): Promise<[number, number][]> {
+  if (stops.length < 2)
+    return stops.map(s => [s.latitude, s.longitude] as [number, number]);
 
   try {
     const coords = stops.map(s => `${s.longitude},${s.latitude}`).join(";");
-    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
-    const res  = await fetch(url, { signal: controller.signal });
+    const ctrl   = new AbortController();
+    const timer  = setTimeout(() => ctrl.abort(), 7000);
+    const res    = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`,
+      { signal: ctrl.signal }
+    );
     clearTimeout(timer);
     const data = await res.json();
-
     if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates?.length > 1) {
       return (data.routes[0].geometry.coordinates as [number, number][]).map(
-        ([lon, lat]) => ({ lat, lon })
+        ([lon, lat]) => [lat, lon] as [number, number]
       );
     }
-  } catch {
-    // fall through to straight-line
+  } catch { /* fall through */ }
+
+  // straight-line fallback
+  return stops.map(s => [s.latitude, s.longitude] as [number, number]);
+}
+
+// ── Snap a lat/lon to the nearest point on the polyline ──────────────────────
+function snapToPolyline(
+  lat: number, lon: number,
+  path: [number, number][]
+): [number, number] {
+  if (path.length === 0) return [lat, lon];
+  if (path.length === 1) return path[0];
+
+  let bestDist = Infinity;
+  let bestPt: [number, number] = path[0];
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const [ax, ay] = path[i];
+    const [bx, by] = path[i + 1];
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) continue;
+    const t = Math.max(0, Math.min(1, ((lat - ax) * dx + (lon - ay) * dy) / lenSq));
+    const px = ax + t * dx, py = ay + t * dy;
+    const d  = (lat - px) ** 2 + (lon - py) ** 2;
+    if (d < bestDist) { bestDist = d; bestPt = [px, py]; }
   }
-
-  return stops.map(s => ({ lat: s.latitude, lon: s.longitude }));
+  return bestPt;
 }
 
-// ── Stop name fuzzy match ─────────────────────────────────────────────────────
-function matchStop(stopName: string, query: string): boolean {
-  if (!query) return false;
-  const s = stopName.toLowerCase().trim();
-  const q = query.toLowerCase().trim();
-  return s === q || s.includes(q) || q.includes(s);
-}
-
-// ── Slice allStops to the fromStop→toStop segment ─────────────────────────────
-function sliceStops(
-  allStops: StopData[],
-  fromStop?: string,
-  toStop?: string
-): { stops: StopData[]; startIdx: number; endIdx: number } {
-  if (!fromStop && !toStop) {
-    return { stops: allStops, startIdx: 0, endIdx: allStops.length - 1 };
-  }
-
-  let startIdx = fromStop
-    ? allStops.findIndex(s => matchStop(s.stopName, fromStop))
-    : -1;
-
-  let endIdx = toStop
-    ? allStops.findIndex(s => matchStop(s.stopName, toStop))
-    : -1;
-
-  // If from/to not found, fall back to whole route
-  if (startIdx === -1) startIdx = 0;
-  if (endIdx   === -1) endIdx   = allStops.length - 1;
-
-  // Ensure correct order
-  if (startIdx > endIdx) [startIdx, endIdx] = [endIdx, startIdx];
-
-  return {
-    stops:    allStops.slice(startIdx, endIdx + 1),
-    startIdx,
-    endIdx,
-  };
-}
-
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface StopData {
   stopName:      string;
   latitude:      number;
@@ -109,23 +94,25 @@ export default function TrackingMap({
   busNumber,
   routeNumber,
   allStops,
-  fromStop,
-  toStop,
 }: TrackingMapProps) {
   const containerRef   = useRef<HTMLDivElement>(null);
+  const wrapperRef     = useRef<HTMLDivElement>(null);
   const mapRef         = useRef<any>(null);
   const markerRef      = useRef<any>(null);
   const polylineRef    = useRef<any>(null);
   const stopMarkersRef = useRef<any[]>([]);
+  // stores the full OSRM path so we can snap the bus to it
+  const roadPathRef    = useRef<[number, number][]>([]);
+  // stores latest snapped position for the locate button
+  const snappedPosRef  = useRef<[number, number]>([position.lat, position.lon]);
 
-  // ── Initialize Leaflet map ONCE ───────────────────────────────────────────
+  // ── Init map once ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
-
     const L   = require("leaflet");
     const map = L.map(containerRef.current, {
       center:       [position.lat, position.lon],
-      zoom:         12,
+      zoom:         13,
       preferCanvas: true,
     });
 
@@ -137,12 +124,12 @@ export default function TrackingMap({
     const busIcon = L.divIcon({
       html: `<div style="
         background:#1d4ed8;color:white;border-radius:50%;
-        width:36px;height:36px;display:flex;align-items:center;
-        justify-content:center;font-size:18px;border:3px solid white;
-        box-shadow:0 2px 12px rgba(0,0,0,0.4);
+        width:38px;height:38px;display:flex;align-items:center;
+        justify-content:center;font-size:20px;border:3px solid white;
+        box-shadow:0 2px 14px rgba(0,0,0,0.45);
         transform:translate(-50%,-50%);">🚌</div>`,
-      iconSize:   [36, 36],
-      iconAnchor: [18, 18],
+      iconSize:   [38, 38],
+      iconAnchor: [19, 19],
       className:  "",
     });
 
@@ -161,24 +148,22 @@ export default function TrackingMap({
       markerRef.current      = null;
       polylineRef.current    = null;
       stopMarkersRef.current = [];
+      roadPathRef.current    = [];
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Draw sliced route when selection or stops change ─────────────────────
+  // ── Draw route + stop markers when allStops changes ──────────────────────
   useEffect(() => {
-    if (!mapRef.current || !allStops || allStops.length < 2) return;
-    const L = require("leaflet");
+    if (!mapRef.current || !allStops || allStops.length < 1) return;
+    const L        = require("leaflet");
+    const cacheKey = `${routeNumber}:${allStops.length}`;
 
-    const { stops: slicedStops, startIdx, endIdx } = sliceStops(allStops, fromStop, toStop);
-    const cacheKey = `${routeNumber}:${startIdx}:${endIdx}`;
-
-    // Remove old stop markers
+    // Rebuild stop markers
     stopMarkersRef.current.forEach(m => { try { m.remove(); } catch {} });
     stopMarkersRef.current = [];
 
-    // Draw stop circle markers only for the sliced segment
-    slicedStops.forEach(stop => {
+    allStops.forEach(stop => {
       if (!stop.latitude || !stop.longitude) return;
       const isDeparted  = stop.status === "DEPARTED";
       const isCurrent   = stop.status === "CURRENT";
@@ -201,61 +186,78 @@ export default function TrackingMap({
       stopMarkersRef.current.push(cm);
     });
 
-    // Draw road polyline for sliced segment
+    // Fetch or use cached road path
     async function drawRoute() {
-      let pathCoords: Array<{ lat: number; lon: number }>;
+      let path: [number, number][];
 
       if (routeGeometryCache.has(cacheKey)) {
-        pathCoords = routeGeometryCache.get(cacheKey)!;
+        path = routeGeometryCache.get(cacheKey)!;
       } else {
-        pathCoords = await fetchRoadPath(slicedStops);
-        routeGeometryCache.set(cacheKey, pathCoords);
+        path = await fetchRoadPath(allStops);
+        routeGeometryCache.set(cacheKey, path);
       }
 
       if (!mapRef.current) return;
+      roadPathRef.current = path;
 
-      if (polylineRef.current) {
-        polylineRef.current.remove();
-        polylineRef.current = null;
-      }
+      // Snap bus to road immediately
+      const snapped = path.length > 1
+        ? snapToPolyline(position.lat, position.lon, path)
+        : [position.lat, position.lon] as [number, number];
+      snappedPosRef.current = snapped;
+      if (markerRef.current) markerRef.current.setLatLng(snapped);
 
-      if (pathCoords.length > 1) {
-        polylineRef.current = L.polyline(
-          pathCoords.map(p => [p.lat, p.lon] as [number, number]),
-          { color: "#1d4ed8", weight: 4, opacity: 0.85, lineJoin: "round" }
-        ).addTo(mapRef.current);
+      // Redraw polyline
+      if (polylineRef.current) { polylineRef.current.remove(); polylineRef.current = null; }
+      if (path.length > 1) {
+        polylineRef.current = L.polyline(path, {
+          color: "#1d4ed8", weight: 5, opacity: 0.85, lineJoin: "round",
+        }).addTo(mapRef.current);
 
         try {
           const b = polylineRef.current.getBounds();
-          if (b.isValid()) mapRef.current.fitBounds(b, { padding: [40, 40] });
+          if (b.isValid()) mapRef.current.fitBounds(b, { padding: [48, 48] });
         } catch {}
       }
     }
 
     drawRoute();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeNumber, fromStop, toStop, allStops]);
+  }, [routeNumber, allStops]);
 
-  // ── Update bus marker position on every poll tick ─────────────────────────
+  // ── Snap bus marker on every position poll (NO auto-pan) ─────────────────
   useEffect(() => {
     if (!markerRef.current) return;
-    markerRef.current.setLatLng([position.lat, position.lon]);
-
-    if (mapRef.current) {
-      try {
-        const bounds = mapRef.current.getBounds();
-        if (!bounds.contains([position.lat, position.lon])) {
-          mapRef.current.panTo([position.lat, position.lon], { animate: true, duration: 1 });
-        }
-      } catch {}
-    }
+    const road    = roadPathRef.current;
+    const snapped = road.length > 1
+      ? snapToPolyline(position.lat, position.lon, road)
+      : [position.lat, position.lon] as [number, number];
+    snappedPosRef.current = snapped;
+    markerRef.current.setLatLng(snapped);
+    // ✅ No auto-pan — user controls the viewport
   }, [position.lat, position.lon]);
 
+  // ── Locate bus button ─────────────────────────────────────────────────────
+  const locateBus = useCallback(() => {
+    if (!mapRef.current) return;
+    mapRef.current.flyTo(snappedPosRef.current, 14, { animate: true, duration: 0.8 });
+  }, []);
+
   return (
-    <div
-      ref={containerRef}
-      style={{ height: "320px", width: "100%" }}
-      className="rounded-xl overflow-hidden"
-    />
+    <div ref={wrapperRef} style={{ position: "relative", height: "320px", width: "100%" }}
+      className="rounded-xl overflow-hidden">
+      {/* Map container */}
+      <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+
+      {/* 🎯 Locate bus button — always on top */}
+      <button
+        onClick={locateBus}
+        title="Locate bus"
+        style={{ position: "absolute", bottom: 12, right: 12, zIndex: 1000 }}
+        className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50 active:scale-95 transition-all"
+      >
+        <span style={{ fontSize: 16 }}>🎯</span> Locate Bus
+      </button>
+    </div>
   );
 }

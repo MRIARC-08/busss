@@ -156,7 +156,7 @@ function TestimonialsCarousel() {
             avatar: f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
             color:  "bg-blue-600",
           })));
-          setIdx(0);
+          // Don't reset idx — keep current position so carousel doesn't jump on load
         }
       })
       .catch(() => {}); // fall back to static on error

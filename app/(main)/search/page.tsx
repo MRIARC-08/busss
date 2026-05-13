@@ -65,8 +65,14 @@ function SearchResults() {
     const acStatus = bus.isAC ? 'AC' : 'Non-AC';
     
     return (
-      <Link href={`/track?busId=${bus.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
-        className={`block p-5 rounded-xl border ${departed ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400 hover:shadow-md'} transition-all group`}
+      <Link
+        href={(() => {
+          // Derive a stable offset (0.0–1.0) per vehicle so each bus shows at a unique position
+          const hash = (bus.id || "x").split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+          const offset = ((hash % 100) / 100).toFixed(2);
+          return `/track?busId=${bus.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&vehicleOffset=${offset}`;
+        })()}
+        className={`block p-5 rounded-xl border bg-white border-brand-200 hover:border-brand-400 hover:shadow-md transition-all group`}
       >
         <div className="flex justify-between items-start">
            <div className="flex items-center gap-3">
@@ -95,8 +101,10 @@ function SearchResults() {
            <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded"><Users className="w-4 h-4 text-brand-600"/> Passengers: {bus.occupancy || 0}/{bus.seats || 45}</span>
         </div>
         
-        <div className={`mt-4 pt-4 border-t flex justify-between items-center ${departed ? 'border-gray-200 opacity-60' : 'border-gray-50'}`}>
-           <span className="text-xs font-bold text-gray-500 flex items-center gap-1"><Clock className="w-4 h-4"/> Last Ping: {Math.floor(Math.random() * 30 + 5)}s ago</span>
+        <div className={`mt-4 pt-4 border-t flex justify-between items-center border-gray-50`}>
+           <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+             <Clock className="w-4 h-4"/> Last Ping: {((bus.id?.charCodeAt?.(0) ?? 5) % 25) + 5}s ago
+           </span>
            <span className={`text-sm font-bold flex items-center gap-1 ${departed ? 'text-gray-500' : 'text-brand-600 group-hover:text-brand-700'}`}>
              Open Live Tracking Map <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
            </span>
@@ -114,7 +122,7 @@ function SearchResults() {
               <MapPin className="text-brand-500 w-6 h-6" />
               {from} <ArrowRight className="text-gray-300 w-5 h-5 mx-1" /> {to}
             </h1>
-            <p className="text-gray-500 font-medium mt-3 bg-brand-50 inline-block px-3 py-1 rounded-lg text-brand-700 border border-brand-100">Total number of buses on route: <span className="font-black">{data.upcoming.length + data.departed.length}</span></p>
+            <p className="text-gray-500 font-medium mt-3 bg-brand-50 inline-block px-3 py-1 rounded-lg text-brand-700 border border-brand-100">Approaching buses: <span className="font-black">{data.upcoming.length}</span></p>
          </div>
       </div>
 
@@ -130,16 +138,6 @@ function SearchResults() {
            ) : (
              <p className="text-gray-500 italic p-6 bg-gray-50 rounded-xl border border-gray-100">No approaching buses found for this exact route at this moment.</p>
            )}
-        </section>
-
-        <section>
-           <h2 className="text-lg font-black text-gray-500 uppercase tracking-widest mb-4 border-b border-gray-200 pb-2">
-             Already Departed From Your Stop
-           </h2>
-           <div className="grid gap-4 opacity-80">
-             {data.departed.map((bus: any) => <BusCard key={bus.id} bus={bus} departed />)}
-           </div>
-        </section>
       </div>
     </div>
   );

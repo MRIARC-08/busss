@@ -81,14 +81,22 @@ export async function GET(
     return NextResponse.json({ error: "Route has insufficient stops" }, { status: 400 });
   }
 
+  const vehicleOffset = parseFloat(url.searchParams.get("vehicleOffset") ?? "0") || 0;
+
   const now = Date.now();
   let sim = simStates.get(busId);
 
   if (!sim) {
     const initOcc = Math.floor(bus.capacity * (0.3 + Math.random() * 0.35));
+    // Offset starting segment by vehicleOffset so different vehicles appear at different positions
+    const startSeg = Math.min(
+      Math.floor(vehicleOffset * (stops.length - 1)),
+      stops.length - 2
+    ) || Math.min(bus.simSegment ?? 0, stops.length - 2);
+
     sim = {
-      segmentIndex: Math.min(bus.simSegment ?? 0, stops.length - 2),
-      progressPct:  bus.simProgress ?? 0,
+      segmentIndex: startSeg,
+      progressPct:  (vehicleOffset * 100) % 100,
       occupancy:    bus.simOccupancy || initOcc,
       delayMin:     bus.simDelay ?? 0,
       lastTickMs:   now,

@@ -103,6 +103,8 @@ export default function TrackingMap({
   const stopMarkersRef = useRef<any[]>([]);
   // stores the full OSRM path so we can snap the bus to it
   const roadPathRef    = useRef<[number, number][]>([]);
+  // true after first fitBounds — prevents auto-zoom on every 4s poll
+  const routeDrawnRef  = useRef<boolean>(false);
   // stores latest snapped position for the locate button
   const snappedPosRef  = useRef<[number, number]>([position.lat, position.lon]);
 
@@ -214,10 +216,14 @@ export default function TrackingMap({
           color: "#1d4ed8", weight: 5, opacity: 0.85, lineJoin: "round",
         }).addTo(mapRef.current);
 
-        try {
-          const b = polylineRef.current.getBounds();
-          if (b.isValid()) mapRef.current.fitBounds(b, { padding: [48, 48] });
-        } catch {}
+        // Only fit bounds on first draw — never auto-zoom after that
+        if (!routeDrawnRef.current) {
+          try {
+            const b = polylineRef.current.getBounds();
+            if (b.isValid()) mapRef.current.fitBounds(b, { padding: [48, 48] });
+            routeDrawnRef.current = true;
+          } catch {}
+        }
       }
     }
 

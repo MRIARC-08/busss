@@ -2122,7 +2122,7 @@ const features = [
   { icon: MapPin,    title: "Smart Routes",      desc: "AI-recommended route combinations across Delhi, Haryana, UP & Punjab",  color: "text-blue-500 bg-blue-50" },
   { icon: Clock,     title: "Live Simulation",   desc: "Real-time bus position tracking with arrival predictions",              color: "text-green-500 bg-green-50" },
   { icon: BarChart3, title: "Crowd Intelligence",desc: "Know crowd levels before you board — plan a comfortable journey",       color: "text-orange-500 bg-orange-50" },
-  { icon: Shield,    title: "Accountability",    desc: "Report issues directly and track government response",                  color: "text-purple-500 bg-purple-50" },
+  { icon: Shield,    title: "Report",    desc: "Report issues directly and track government response",                  color: "text-purple-500 bg-purple-50" },
 ];
 
 export default function FeatureCards() {

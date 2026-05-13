@@ -138,6 +138,7 @@ function SearchResults() {
            ) : (
              <p className="text-gray-500 italic p-6 bg-gray-50 rounded-xl border border-gray-100">No approaching buses found for this exact route at this moment.</p>
            )}
+        </section>
       </div>
     </div>
   );

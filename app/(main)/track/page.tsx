@@ -171,8 +171,11 @@ function TrackPageContent() {
         <TrackingMap
           position={position}
           busNumber={busNumber}
+          busId={dbBusId ?? rawBusId}
           allStops={allStops}
           routeNumber={routeNumber}
+          fromStop={fromQuery || undefined}
+          toStop={toQuery || undefined}
         />
       </div>
 

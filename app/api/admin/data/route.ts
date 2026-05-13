@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+function authCheck(req: Request) {
+  const auth = req.headers.get("x-admin-token") ?? "";
+  return auth.includes(".");
+}
+
+// GET /api/admin/data?resource=buses|routes|users|stats
+export async function GET(req: Request) {
+  if (!authCheck(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+
+  const url      = new URL(req.url);
+  const resource = url.searchParams.get("resource") ?? "stats";
+
+  if (resource === "stats") {
+    const [buses, routes, users, reports, openReports] = await Promise.all([
+      prisma.bus.count(),
+      prisma.route.count(),
+      prisma.user.count(),
+      prisma.report.count(),
+      prisma.report.count({ where: { status: "OPEN" } }),
+    ]);
+    return NextResponse.json({ buses, routes, users, reports, openReports });
+  }
+
+  if (resource === "buses") {
+    const buses = await prisma.bus.findMany({
+      include: { route: { select: { routeNumber: true, name: true } }, authority: { select: { name: true } } },
+      orderBy: { id: "asc" },
+    });
+    return NextResponse.json(buses);
+  }
+
+  if (resource === "routes") {
+    const routes = await prisma.route.findMany({
+      include: {
+        authority: { select: { name: true } },
+        _count: { select: { buses: true, stops: true } },
+      },
+      orderBy: { routeNumber: "asc" },
+    });
+    return NextResponse.json(routes);
+  }
+
+  if (resource === "users") {
+    const users = await prisma.user.findMany({
+      select: { id: true, firstName: true, lastName: true, mobile: true, age: true, aadhaar: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(users);
+  }
+
+  return NextResponse.json({ error: "Unknown resource" }, { status: 400 });
+}

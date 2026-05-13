@@ -229,6 +229,22 @@ async function main() {
     ],
   });
 
+  // ── DEMO USER ────────────────────────────────────────────────────────────────
+  // password = "password123" (bcrypt cost 12)
+  const demoHash = "$2b$12$vtaeNk3Pvqgc98jDI0w7auTH7pvh5axxDhVXfBe964MD.XJpnHx.m";
+  await prisma.user.upsert({
+    where:  { mobile: "9999999999" },
+    update: {},
+    create: {
+      mobile:    "9999999999",
+      password:  demoHash,
+      firstName: "Demo",
+      lastName:  "User",
+      age:       25,
+      aadhaar:   "999999999999",
+    },
+  });
+
   console.log("✅ Database seeded successfully!");
 }
 

@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useBusTracking } from "@/hooks/useBusTracking";
 import {
   Loader2, AlertCircle, MapPin, Users, Zap, Clock,
-  Navigation, ArrowLeft, RefreshCw, Bus,
+  Navigation,  ArrowLeft, RefreshCw, Bus, EyeOff, Wind, Plus, Minus
 } from "lucide-react";
+import Link from "next/link";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 // ─── Load map with SSR disabled ────────────────────────────────────────────────
 const TrackingMap = dynamic(
@@ -64,8 +66,9 @@ function OccupancyBar({ occupied, capacity }: { occupied: number; capacity: numb
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
-export default function BusTrackPage() {
-  const params    = useParams();
+export default function TrackPageContent() {
+  const { t } = useLanguage();
+  const params = useParams();
   const router    = useRouter();
   const busId     = params?.busId as string;
 
@@ -82,26 +85,25 @@ export default function BusTrackPage() {
   }
 
   // ── Error ──────────────────────────────────────────────────────────────────
-  if (error || !busData) {
     return (
       <div className="max-w-md mx-auto px-4 py-24 flex flex-col items-center gap-5 text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
-        <h2 className="text-xl font-black text-gray-800">Tracking Unavailable</h2>
-        <p className="text-gray-500 text-sm">{error ?? "Bus data could not be loaded."}</p>
+        <h2 className="text-xl font-black text-gray-800">{t("track.unavailable")}</h2>
+        <p className="text-gray-500 text-sm">{error ?? t("track.loadError")}</p>
         <div className="flex gap-3">
           <button
             onClick={refresh}
             className="flex items-center gap-2 bg-brand-600 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-brand-700 transition-colors text-sm"
           >
-            <RefreshCw className="w-4 h-4" /> Retry
+            <RefreshCw className="w-4 h-4" /> {t("track.retry")}
           </button>
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 border border-gray-200 text-gray-600 font-bold px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm"
           >
-            <ArrowLeft className="w-4 h-4" /> Go Back
+            <ArrowLeft className="w-4 h-4" /> {t("track.goBack")}
           </button>
         </div>
       </div>
@@ -117,6 +119,28 @@ export default function BusTrackPage() {
     speedKmh, delayMin, allStops, lastUpdated,
   } = busData;
 
+  function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  let totalDistKm = 0;
+  for (let i = 0; i < allStops.length - 1; i++) {
+    totalDistKm += haversineKm(
+      allStops[i].latitude, allStops[i].longitude,
+      allStops[i+1].latitude, allStops[i+1].longitude
+    );
+  }
+  const totalTimeMin = speedKmh > 0 ? (totalDistKm / speedKmh) * 60 : 0;
+  const lastStopEta = allStops[allStops.length - 1]?.etaFromNowMin;
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       {/* Back + header */}
@@ -130,7 +154,7 @@ export default function BusTrackPage() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-black text-gray-800 truncate">
-            Bus {busNumber} — Route {routeNumber}
+            {t("track.vehicle")} {busNumber} — {t("track.route")} {routeNumber}
           </h1>
           <p className="text-xs text-gray-500 truncate">{routeName} · {authority}</p>
         </div>
@@ -157,27 +181,27 @@ export default function BusTrackPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
-            icon: <Navigation className="w-4 h-4" />,
-            label: "Speed",
-            value: `${speedKmh} km/h`,
+            icon: <MapPin className="w-4 h-4" />,
+            label: t("track.totalDist"),
+            value: `${totalDistKm.toFixed(1)} km`,
             cls: "text-blue-700",
           },
           {
             icon: <Clock className="w-4 h-4" />,
-            label: "ETA Next Stop",
-            value: `${etaToNextStopMin} min`,
+            label: t("track.totalTime"),
+            value: `${Math.round(totalTimeMin)} min`,
             cls: "text-green-700",
           },
           {
-            icon: <MapPin className="w-4 h-4" />,
-            label: "Distance",
-            value: `${distanceToNextKm} km`,
+            icon: <Navigation className="w-4 h-4" />,
+            label: t("track.reachIn"),
+            value: lastStopEta != null ? `${Math.round(lastStopEta)} min` : t("track.reached"),
             cls: "text-orange-700",
           },
           {
             icon: <Zap className="w-4 h-4" />,
-            label: "Delay",
-            value: delayMin === 0 ? "On time" : `+${delayMin} min`,
+            label: t("track.delay"),
+            value: delayMin === 0 ? t("track.onTime") : `+${delayMin} min`,
             cls: delayMin === 0 ? "text-green-700" : "text-red-700",
           },
         ].map(({ icon, label, value, cls }) => (
@@ -197,7 +221,7 @@ export default function BusTrackPage() {
             <Bus className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Currently At</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.currentlyAt")}</p>
             <p className="font-black text-gray-800 truncate">{currentStopName}</p>
           </div>
           <CrowdBadge level={crowdLevel} />
@@ -208,9 +232,9 @@ export default function BusTrackPage() {
             <MapPin className="w-4 h-4 text-green-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Next Stop</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.nextStop")}</p>
             <p className="font-black text-gray-800 truncate">{nextStopName}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min away</p>
+            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min {t("track.away")}</p>
           </div>
         </div>
 
@@ -218,7 +242,7 @@ export default function BusTrackPage() {
         <div className="border-t border-gray-100 pt-4">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-4 h-4 text-gray-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Occupancy</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("track.occupancy")}</p>
           </div>
           <OccupancyBar occupied={occupancy} capacity={capacity} />
         </div>
@@ -227,7 +251,7 @@ export default function BusTrackPage() {
       {/* Route timeline */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="font-black text-gray-800 text-sm uppercase tracking-wider">Route Timeline</h2>
+          <h2 className="font-black text-gray-800 text-sm uppercase tracking-wider">{t("track.routeTimeline")}</h2>
         </div>
         <div className="px-5 py-4 space-y-0">
           {allStops.map((stop, i) => {

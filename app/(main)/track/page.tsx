@@ -8,6 +8,7 @@ import {
   Loader2, AlertCircle, MapPin, Users, Zap, Clock,
   Navigation, ArrowLeft, RefreshCw, Bus,
 } from "lucide-react";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
 
 // Load map with SSR disabled
 const TrackingMap = dynamic(
@@ -71,12 +72,13 @@ async function resolveDbBusId(rawId: string): Promise<number | null> {
 
 // ── Main tracking UI ──────────────────────────────────────────────────────────
 function TrackPageContent() {
-  const params = useSearchParams();
+  const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  const rawBusId = params.get("busId") || "";
-  const fromQuery = params.get("from") || "";
-  const toQuery   = params.get("to")   || "";
+  const rawBusId = searchParams.get("busId") || "";
+  const fromQuery = searchParams.get("from") || "";
+  const toQuery   = searchParams.get("to")   || "";
 
   const [dbBusId, setDbBusId]       = useState<number | null>(null);
   const [resolving, setResolving]   = useState(true);
@@ -101,7 +103,7 @@ function TrackPageContent() {
       <div className="flex flex-col items-center justify-center py-32 gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
         <p className="text-gray-500 text-sm">
-          {resolving ? "Resolving bus ID…" : "Connecting to live bus feed…"}
+          {resolving ? t("track.resolving") : t("track.connecting")}
         </p>
       </div>
     );
@@ -114,22 +116,22 @@ function TrackPageContent() {
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
-        <h2 className="text-xl font-black text-gray-800">Tracking Unavailable</h2>
+        <h2 className="text-xl font-black text-gray-800">{t("track.unavailable")}</h2>
         <p className="text-gray-500 text-sm">
           {resolveErr
-            ? `Bus "${rawBusId}" was not found in the system.`
-            : (error ?? "Bus data could not be loaded.")}
+            ? t("track.notFound")
+            : (error ?? t("track.loadError"))}
         </p>
         <div className="flex gap-3 flex-wrap justify-center">
           {!resolveErr && (
             <button onClick={refresh}
               className="flex items-center gap-2 bg-brand-600 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-brand-700 transition-colors text-sm">
-              <RefreshCw className="w-4 h-4" /> Retry
+              <RefreshCw className="w-4 h-4" /> {t("track.retry")}
             </button>
           )}
           <button onClick={() => router.back()}
             className="flex items-center gap-2 border border-gray-200 text-gray-600 font-bold px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm">
-            <ArrowLeft className="w-4 h-4" /> Go Back
+            <ArrowLeft className="w-4 h-4" /> {t("track.goBack")}
           </button>
         </div>
       </div>
@@ -144,26 +146,48 @@ function TrackPageContent() {
     speedKmh, delayMin, allStops, lastUpdated,
   } = busData;
 
+  function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  let totalDistKm = 0;
+  for (let i = 0; i < allStops.length - 1; i++) {
+    totalDistKm += haversineKm(
+      allStops[i].latitude, allStops[i].longitude,
+      allStops[i+1].latitude, allStops[i+1].longitude
+    );
+  }
+  const totalTimeMin = speedKmh > 0 ? (totalDistKm / speedKmh) * 60 : 0;
+  const lastStopEta = allStops[allStops.length - 1]?.etaFromNowMin;
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-black text-gray-800 truncate">
-            Bus {busNumber} — Route {routeNumber}
+      <div className="bg-white rounded-2xl border border-brand-200 shadow-sm p-4 flex justify-between items-center bg-gradient-to-r from-white to-brand-50">
+        <div>
+          <div className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest mb-2 border border-green-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            {t("track.status")}
+          </div>
+          <h1 className="text-2xl font-black text-gray-800">
+            {t("track.route")} {routeNumber}
           </h1>
-          <p className="text-xs text-gray-500 truncate">
-            {fromQuery && toQuery ? `${fromQuery} → ${toQuery}` : routeName} · {authority}
+          <p className="text-sm text-gray-500 font-medium">
+            {t("track.vehicle")} {busNumber} • {t("track.towards")} <span className="font-bold text-gray-700">{routeName}</span>
           </p>
         </div>
-        <button onClick={refresh}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Refresh">
-          <RefreshCw className="w-4 h-4 text-gray-500" />
-        </button>
+        <div className="text-right">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
+          <p className="text-xl font-black text-brand-600">{speedKmh} <span className="text-sm text-brand-400">km/h</span></p>
+        </div>
       </div>
 
       {/* Map */}
@@ -182,10 +206,10 @@ function TrackPageContent() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: <Navigation className="w-4 h-4" />, label: "Speed",        value: `${speedKmh} km/h`,                                  cls: "text-blue-700"   },
-          { icon: <Clock       className="w-4 h-4" />, label: "ETA Next",     value: `${etaToNextStopMin} min`,                            cls: "text-green-700"  },
-          { icon: <MapPin      className="w-4 h-4" />, label: "Distance",     value: `${distanceToNextKm} km`,                             cls: "text-orange-700" },
-          { icon: <Zap        className="w-4 h-4" />, label: "Delay",        value: delayMin === 0 ? "On time" : `+${delayMin} min`,      cls: delayMin === 0 ? "text-green-700" : "text-red-700" },
+          { icon: <MapPin      className="w-4 h-4" />, label: t("track.totalDist"),   value: `${totalDistKm.toFixed(1)} km`,                       cls: "text-blue-700"   },
+          { icon: <Clock       className="w-4 h-4" />, label: t("track.totalTime"),   value: `${Math.round(totalTimeMin)} min`,                    cls: "text-green-700"  },
+          { icon: <Navigation  className="w-4 h-4" />, label: t("track.reachIn"),   value: lastStopEta != null ? `${Math.round(lastStopEta)} min` : t("track.reached"), cls: "text-orange-700" },
+          { icon: <Zap         className="w-4 h-4" />, label: t("track.delay"),        value: delayMin === 0 ? t("track.onTime") : `+${delayMin} min`,      cls: delayMin === 0 ? "text-green-700" : "text-red-700" },
         ].map(({ icon, label, value, cls }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
             <div className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide mb-1 ${cls}`}>
@@ -203,7 +227,7 @@ function TrackPageContent() {
             <Bus className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Currently At</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.currentlyAt")}</p>
             <p className="font-black text-gray-800 truncate">{currentStopName}</p>
           </div>
           <CrowdBadge level={crowdLevel} />
@@ -214,16 +238,16 @@ function TrackPageContent() {
             <MapPin className="w-4 h-4 text-green-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Next Stop</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.nextStop")}</p>
             <p className="font-black text-gray-800 truncate">{nextStopName}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min away</p>
+            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min {t("track.away")}</p>
           </div>
         </div>
 
         <div className="border-t border-gray-100 pt-4">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-4 h-4 text-gray-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Occupancy</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("track.occupancy")}</p>
           </div>
           <OccupancyBar occupied={occupancy} capacity={capacity} />
         </div>

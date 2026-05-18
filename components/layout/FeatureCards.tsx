@@ -7,9 +7,9 @@ export default function FeatureCards() {
   const { t } = useLanguage();
 
   const features = [
-    { icon: MapPin,    title: t("features.smartRoutes"),      desc: t("features.smartRoutesDesc"),  color: "text-blue-500 bg-blue-50" },
+    // { icon: MapPin,    title: t("features.smartRoutes"),      desc: t("features.smartRoutesDesc"),  color: "text-blue-500 bg-blue-50" },
     { icon: Clock,     title: t("features.liveSim"),   desc: t("features.liveSimDesc"),              color: "text-green-500 bg-green-50" },
-    { icon: BarChart3, title: t("features.crowdIntell"),desc: t("features.crowdIntellDesc"),       color: "text-orange-500 bg-orange-50" },
+    // { icon: BarChart3, title: t("features.crowdIntell"),desc: t("features.crowdIntellDesc"),       color: "text-orange-500 bg-orange-50" },
     { icon: Shield,    title: t("features.accountability"),    desc: t("features.accountabilityDesc"),                  color: "text-purple-500 bg-purple-50" },
   ];
 
@@ -18,7 +18,7 @@ export default function FeatureCards() {
       <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
         {t("features.title")}
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="flex justify-center items-center gap-20">
         {features.map(({ icon: Icon, title, desc, color }) => (
           <div key={title}
             className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">

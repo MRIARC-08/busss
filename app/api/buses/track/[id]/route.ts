@@ -10,7 +10,27 @@ interface SimState {
   speedKmh: number;
 }
 
-const simStates = new Map<number, SimState>();
+const simStates = (globalThis as any).simStates || new Map<number, SimState>();
+(globalThis as any).simStates = simStates;
+
+const geocodeCache = (globalThis as any).geocodeCache || new Map<string, {lat: number, lon: number}>();
+(globalThis as any).geocodeCache = geocodeCache;
+
+async function geocode(query: string) {
+  if (!query) return null;
+  const key = query.toLowerCase();
+  if (geocodeCache.has(key)) return geocodeCache.get(key);
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + " Delhi NCR")}`);
+    const data = await res.json();
+    if (data && data[0]) {
+      const coord = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      geocodeCache.set(key, coord);
+      return coord;
+    }
+  } catch (e) {}
+  return null;
+}
 
 function speedForType(type: string): number {
   switch (type.toUpperCase()) {
@@ -76,7 +96,26 @@ export async function GET(
 
   if (!bus) return NextResponse.json({ error: "Bus not found" }, { status: 404 });
 
-  const stops = bus.route.stops;
+  let stops = bus.route.stops;
+
+  // ── Dynamically override route geometry if user searched specific places ───
+  if (fromStop && toStop) {
+    const origin = await geocode(fromStop);
+    const dest = await geocode(toStop);
+    if (origin && dest) {
+      const numPoints = 8;
+      stops = Array.from({length: numPoints}).map((_, i) => {
+        const frac = i / (numPoints - 1);
+        return {
+          sequence: i + 1,
+          stopName: i === 0 ? fromStop : i === numPoints - 1 ? toStop : `Route Waypoint ${i}`,
+          latitude: origin.lat + (dest.lat - origin.lat) * frac,
+          longitude: origin.lon + (dest.lon - origin.lon) * frac,
+        };
+      });
+    }
+  }
+
   if (!stops || stops.length < 2) {
     return NextResponse.json({ error: "Route has insufficient stops" }, { status: 400 });
   }
@@ -223,6 +262,28 @@ export async function GET(
 
   const slicedStops = allStops.slice(startIdx, endIdx + 1);
 
+  // ── Dynamic Mock Overrides ──────────────────────────────────────────────────
+  // If the user came from the search page with a specific from/to query, 
+  // we dynamically inject those names into the mock route to maintain UI consistency.
+  let dynamicRouteName = bus.route.name;
+  
+  function capitalize(str: string) {
+    return str.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+
+  if (fromStop && toStop) {
+    dynamicRouteName = `${capitalize(fromStop)} - ${capitalize(toStop)}`;
+    
+    // Override the first stop name if we couldn't fuzzy match it
+    if (slicedStops.length > 0 && findStopIdx(fromStop, -1) === -1) {
+      slicedStops[0].stopName = capitalize(fromStop);
+    }
+    // Override the last stop name if we couldn't fuzzy match it
+    if (slicedStops.length > 1 && findStopIdx(toStop, -1) === -1) {
+      slicedStops[slicedStops.length - 1].stopName = capitalize(toStop);
+    }
+  }
+
   console.log(
     `[SIM] Bus ${busId} | Seg ${segmentIndex} | Progress ${sim.progressPct.toFixed(1)}% | ` +
     `Speed ${speedKmh}kmh | ETA next ${Math.round(etaToNextStopMin)}min | ` +
@@ -233,7 +294,7 @@ export async function GET(
     busId:            bus.id,
     busNumber:        bus.busNumber,
     routeNumber:      bus.route.routeNumber,
-    routeName:        bus.route.name,
+    routeName:        dynamicRouteName,
     authority:        bus.authority.name,
     position:         { lat: currentLat, lon: currentLon },
     segmentIndex,

@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bus, MapPin, AlertCircle, LayoutDashboard, UserCircle,
-  ChevronDown, LogOut, User,
+  ChevronDown, LogOut, User, Phone,
 } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState, useRef, useEffect, useId } from "react";
 import AuthModal from "@/components/auth/AuthModal";
+import { SOSModal } from "@/components/shared/SOSModal";
 
 // Live clock shown in top bar
 function LiveClock() {
@@ -86,7 +87,7 @@ function UserDropdown({ user, logout }: { user: { firstName: string; lastName: s
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
           >
-            <User className="w-4 h-4 text-brand-600" aria-hidden="true" /> My Profile
+            <User className="w-4 h-4 text-brand-600" aria-hidden="true" /> {("nav.profile")}
           </Link>
           <button
             role="menuitem"
@@ -107,10 +108,11 @@ export default function Navbar() {
   const { t, language, setLanguage, fontSize, setFontSize } = useLanguage();
   const { user, logout } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isSOSOpen, setIsSOSOpen] = useState(false);
 
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus },
-    { href: "/live", label: "Live Map", icon: MapPin },
+    { href: "/live", label: t("nav.liveMap"), icon: MapPin },
     { href: "/report", label: t("nav.report"), icon: AlertCircle },
   ];
 
@@ -154,6 +156,14 @@ export default function Navbar() {
 
           {/* Auth area */}
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSOSOpen(true)}
+              aria-label="Emergency SOS"
+              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold px-2.5 py-1 rounded shadow shadow-red-900/20 transition-all animate-pulse focus:outline-none focus:ring-2 focus:ring-white"
+            >
+              <Phone className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">SOS</span>
+            </button>
             {user ? (
               <UserDropdown user={user} logout={logout} />
             ) : (
@@ -178,13 +188,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-white rounded" aria-label="Where Is My Bus — Home">
-            <div className="bg-white p-1.5 rounded-full flex-shrink-0">
-              <Bus className="h-7 w-7 text-brand-700" aria-hidden="true" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="bg-white text-brand-700 p-2 rounded-xl group-hover:scale-105 transition-transform">
+              <Bus className="h-6 w-6" />
             </div>
-            <div className="hidden sm:block leading-none">
-              <p className="font-black text-base">WHERE IS MY BUS</p>
-              <p className="text-[10px] text-blue-200 font-medium tracking-widest">SMART NAVIGATOR</p>
+            <div>
+              <div className="font-black text-xl leading-none tracking-tight">{t("brand.title")}</div>
+              <div className="text-[10px] font-bold tracking-widest text-blue-200 mt-1 uppercase">{t("brand.subtitle")}</div>
             </div>
           </Link>
 
@@ -214,13 +224,13 @@ export default function Navbar() {
             {user && (
               <Link
                 href="/profile"
-                aria-label="My Profile"
+                aria-label={t("nav.profile")}
                 aria-current={pathname === "/profile" ? "page" : undefined}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white
                   ${pathname === "/profile" ? "bg-white text-brand-700" : "text-blue-100 hover:bg-brand-600 hover:text-white"}`}
               >
                 <UserCircle className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden lg:inline">Profile</span>
+                <span className="hidden lg:inline">{t("nav.profile")}</span>
               </Link>
             )}
           </div>
@@ -228,6 +238,7 @@ export default function Navbar() {
       </div>
 
       {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
+      {isSOSOpen && <SOSModal onClose={() => setIsSOSOpen(false)} />}
     </nav>
   );
 }

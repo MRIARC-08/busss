@@ -63,6 +63,7 @@ function StarRating({ rating }: { rating: number }) {
 
 // ── Feedback form ─────────────────────────────────────────────────────────────
 function FeedbackForm() {
+  const { t } = useLanguage();
   const [rating, setRating]     = useState(0);
   const [hover,  setHover]      = useState(0);
   const [name,   setName]       = useState("");
@@ -90,17 +91,17 @@ function FeedbackForm() {
   if (done) return (
     <div className="text-center py-8">
       <div className="text-5xl mb-3">🙏</div>
-      <p className="text-white font-bold text-lg">Thank you for your feedback!</p>
-      <p className="text-blue-200 text-sm mt-1">Your experience helps us improve.</p>
+      <p className="text-white font-bold text-lg">{t("testimonials.thanks")}</p>
+      <p className="text-blue-200 text-sm mt-1">{t("testimonials.thanksSub")}</p>
       <button onClick={() => { setDone(false); setRating(0); setName(""); setText(""); }}
-        className="mt-4 text-xs text-blue-300 underline hover:text-white">Submit another</button>
+        className="mt-4 text-xs text-blue-300 underline hover:text-white">{t("testimonials.submitAnother")}</button>
     </div>
   );
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <p className="text-blue-200 text-sm font-semibold mb-2">Your Rating *</p>
+        <p className="text-blue-200 text-sm font-semibold mb-2">{t("testimonials.rating")}</p>
         <div className="flex gap-1">
           {[1,2,3,4,5].map(i => (
             <button key={i} type="button"
@@ -116,14 +117,14 @@ function FeedbackForm() {
         type="text"
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="Your name (optional)"
+        placeholder={t("testimonials.nameOpt")}
         className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60"
       />
       <textarea
         rows={3}
         value={text}
         onChange={e => setText(e.target.value)}
-        placeholder="Share your experience with the app..."
+        placeholder={t("testimonials.shareExp")}
         required
         className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 resize-none"
       />
@@ -132,7 +133,7 @@ function FeedbackForm() {
         disabled={!rating || !text.trim() || loading}
         className="w-full bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-gray-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
       >
-        {loading ? "Sending..." : <><Send className="w-4 h-4" /> Share Experience</>}
+        {loading ? t("testimonials.sending") : <><Send className="w-4 h-4" /> {t("testimonials.btn")}</>}
       </button>
     </form>
   );
@@ -140,6 +141,7 @@ function FeedbackForm() {
 
 // ── Testimonials carousel — reads from DB ─────────────────────────────────────
 function TestimonialsCarousel() {
+  const { language } = useLanguage();
   const [items, setItems] = useState(TESTIMONIALS);
   const [idx,   setIdx]   = useState(0);
 
@@ -150,7 +152,7 @@ function TestimonialsCarousel() {
         if (d.feedback?.length) {
           setItems(d.feedback.map((f: any) => ({
             name:   f.name,
-            route:  f.route || "App User",
+            route:  f.route || (language === "hi" ? "ऐप उपयोगकर्ता" : "App User"),
             rating: f.rating,
             text:   f.text,
             avatar: f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
@@ -164,7 +166,9 @@ function TestimonialsCarousel() {
 
   const prev = () => setIdx(i => (i - 1 + items.length) % items.length);
   const next = () => setIdx(i => (i + 1) % items.length);
-  const t = items[idx];
+  
+  const safeIdx = (idx >= 0 && idx < items.length) ? idx : 0;
+  const t = items[safeIdx];
 
   return (
     <div className="relative">
@@ -234,13 +238,13 @@ export default function HomePage() {
             <h1 className="text-5xl lg:text-7xl font-black mb-4 tracking-tighter uppercase drop-shadow-md">
               {t("hero.title")}
             </h1>
-            <div className="flex items-center justify-end gap-4 text-xl lg:text-3xl font-medium tracking-wide">
+            {/* <div className="flex items-center justify-end gap-4 text-xl lg:text-3xl font-medium tracking-wide">
               <span>{t("hero.subtitle").split(" | ")[0]}</span>
               <span className="w-1.5 h-10 bg-[#fb792b]" />
               <span>{t("hero.subtitle").split(" | ")[1]}</span>
               <span className="w-1.5 h-10 bg-[#fb792b]" />
               <span>{t("hero.subtitle").split(" | ")[2]}</span>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -256,17 +260,17 @@ export default function HomePage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-xs font-bold uppercase tracking-widest mb-4">
               <MessageSquare className="w-3.5 h-3.5" />
-              Passenger Voices
+              {t("testimonials.badge")}
             </div>
-            <h2 className="text-3xl lg:text-4xl font-black text-white mb-3">What Commuters Are Saying</h2>
-            <p className="text-blue-300 text-sm max-w-xl mx-auto">Real experiences from real passengers across Delhi, Haryana & Punjab</p>
+            <h2 className="text-3xl lg:text-4xl font-black text-white mb-3">{t("testimonials.title")}</h2>
+            <p className="text-blue-300 text-sm max-w-xl mx-auto">{t("testimonials.subtitle")}</p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-10 items-start">
             {/* Testimonials */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                <Star className="w-5 h-5 text-amber-400 fill-amber-400" /> Commuter Reviews
+                <Star className="w-5 h-5 text-amber-400 fill-amber-400" /> {t("testimonials.reviews")}
               </h3>
               <TestimonialsCarousel />
             </div>
@@ -274,7 +278,7 @@ export default function HomePage() {
             {/* Feedback form */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-300" /> Share Your Experience
+                <Send className="w-5 h-5 text-blue-300" /> {t("testimonials.share")}
               </h3>
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                 <FeedbackForm />
@@ -285,9 +289,9 @@ export default function HomePage() {
           {/* Contact info */}
           <div className="mt-14 pt-8 border-t border-white/10 grid sm:grid-cols-3 gap-6 text-center">
             {[
-              { emoji: "📞", label: "Helpline",    value: "1800-200-1234",       sub: "Mon–Sat, 8am–8pm" },
-              { emoji: "✉️", label: "Email",       value: "support@wimb.in",     sub: "Response within 24h" },
-              { emoji: "📍", label: "Head Office", value: "New Delhi, India",    sub: "Govt. Transport Wing" },
+              { emoji: "📞", label: t("contact.helpline"),    value: "1800-200-1234",             sub: t("contact.helplineSub") },
+              { emoji: "✉️", label: t("contact.email"),       value: "support@wimb.in",           sub: t("contact.emailSub") },
+              { emoji: "📍", label: t("contact.office"),      value: t("contact.officeVal"),      sub: t("contact.officeSub") },
             ].map(({ emoji, label, value, sub }) => (
               <div key={label} className="bg-white/5 rounded-2xl p-5 border border-white/10">
                 <div className="text-3xl mb-2">{emoji}</div>

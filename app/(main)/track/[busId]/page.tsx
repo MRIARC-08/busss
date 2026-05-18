@@ -85,6 +85,7 @@ export default function TrackPageContent() {
   }
 
   // ── Error ──────────────────────────────────────────────────────────────────
+  if (error || !busData) {
     return (
       <div className="max-w-md mx-auto px-4 py-24 flex flex-col items-center gap-5 text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">

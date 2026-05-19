@@ -54,6 +54,13 @@ export async function GET(req: Request) {
     return NextResponse.json(users);
   }
 
+  if (resource === "sos") {
+    const sos = await prisma.sosAlert.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(sos);
+  }
+
   return NextResponse.json({ error: "Unknown resource" }, { status: 400 });
 }
 

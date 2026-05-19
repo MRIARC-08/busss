@@ -12,8 +12,13 @@ export function FloatingSOS() {
   const startPress = () => {
     isLongPress.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
+    timerRef.current = setTimeout(async () => {
       isLongPress.current = true;
+      try {
+        await fetch("/api/sos", { method: "POST" });
+      } catch (e) {
+        // ignore errors so we don't block dialing
+      }
       window.location.href = "tel:100";
     }, 600); // 600ms long press to dial
   };

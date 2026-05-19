@@ -131,3 +131,10 @@ model Feedback {
   route     String?
   createdAt DateTime @default(now())
 }
+
+model SosAlert {
+  id        Int      @id @default(autoincrement())
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}

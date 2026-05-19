@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, FileText, Bus, MapPin, Users,
   LogOut, Shield, RefreshCw, CheckCircle,
-  Clock, AlertTriangle, XCircle, Loader2, Search,
+  Clock, AlertTriangle, XCircle, Loader2, Search, PhoneCall,
   ChevronDown, ChevronUp, X, User, Menu, Star, Phone,
   MessageSquare, LocateFixed,
 } from "lucide-react";
@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 
 const LiveMapTab = dynamic(() => import("./LiveMapTab"), { ssr: false });
 
-type Tab = "overview" | "live" | "reports" | "buses" | "routes" | "users" | "feedback";
+type Tab = "overview" | "live" | "sos" | "reports" | "buses" | "routes" | "users" | "feedback";
 
 const statusColour: Record<string, string> = {
   OPEN:        "bg-red-100 text-red-700 border-red-200",
@@ -622,6 +622,7 @@ export default function AdminDashboard() {
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: "overview", label: "Overview",  icon: LayoutDashboard },
     { id: "live",     label: "Live Map",  icon: LocateFixed },
+    { id: "sos",      label: "SOS Logs",  icon: PhoneCall },
     { id: "reports",  label: "Reports",   icon: FileText },
     { id: "feedback", label: "Feedback",  icon: MessageSquare },
     { id: "buses",    label: "Buses",     icon: Bus },
@@ -700,7 +701,7 @@ export default function AdminDashboard() {
         <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
           <h1 className="text-xl sm:text-2xl font-black text-gray-800 capitalize">
-            {tab === "overview" ? "Dashboard Overview" : tab === "feedback" ? "Passenger Feedback" : tab === "live" ? "Live Fleet Tracking" : tab}
+            {tab === "overview" ? "Dashboard Overview" : tab === "feedback" ? "Passenger Feedback" : tab === "live" ? "Live Fleet Tracking" : tab === "sos" ? "Emergency SOS Logs" : tab}
           </h1>
           <p className="text-gray-500 text-sm mt-1">Where Is My Bus — Admin Control Panel</p>
         </div>
@@ -746,6 +747,24 @@ export default function AdminDashboard() {
         {tab === "reports"  && <ReportsTab token={token} />}
         {tab === "feedback" && <FeedbackTab token={token} />}
         {tab === "live"     && <LiveMapTab />}
+        
+        {tab === "sos" && (
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3">
+              <PhoneCall className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-red-800 text-sm">Emergency Calls Monitoring</h3>
+                <p className="text-xs text-red-600 mt-1">This log tracks whenever a user long-presses the SOS button to dial 100. It includes their IP address and browser details for security audits.</p>
+              </div>
+            </div>
+            <DataTab token={token} resource="sos" columns={[
+              { key: "id",        label: "ID" },
+              { key: "ipAddress", label: "IP Address", render: r => <span className="font-mono text-xs">{r.ipAddress || "Unknown"}</span> },
+              { key: "createdAt", label: "Timestamp",  render: r => new Date(r.createdAt).toLocaleString("en-IN") },
+              { key: "userAgent", label: "Browser User Agent", render: r => <span className="text-xs text-gray-500 line-clamp-1 max-w-sm" title={r.userAgent}>{r.userAgent || "Unknown"}</span> },
+            ]} />
+          </div>
+        )}
 
         {tab === "buses" && (
           <div className="space-y-4">

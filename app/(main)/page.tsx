@@ -6,7 +6,7 @@ import PopularRoutes from "@/components/layout/PopularRoutes";
 import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useState, useEffect } from "react";
-import { Star, Send, MessageSquare, ChevronLeft, ChevronRight, ShieldCheck, Wrench, UserCheck, BadgeCheck, Map, Download, Sparkles, Share } from "lucide-react";
+import { Star, Send, MessageSquare, ChevronLeft, ChevronRight, ShieldCheck, Wrench, UserCheck, BadgeCheck, Map, Download, Sparkles, Share, Smartphone, QrCode, Clipboard, Check } from "lucide-react";
 
 // ── Static passenger testimonials ────────────────────────────────────────────
 const TESTIMONIALS = [
@@ -236,6 +236,23 @@ function TestimonialsCarousel() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { t } = useLanguage();
+  const [showDesktopPWA, setShowDesktopPWA] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handlePWAInstallClick = () => {
+    const isMobile = window.innerWidth < 768;
+    if (!isMobile) {
+      setShowDesktopPWA(true);
+    } else {
+      window.dispatchEvent(new CustomEvent("trigger-pwa-direct-install"));
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen flex flex-col pt-0">
@@ -330,7 +347,7 @@ export default function HomePage() {
             <div className="flex-shrink-0 w-full md:w-auto flex flex-col gap-3.5 justify-center items-center">
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("trigger-pwa-install"))}
+                onClick={handlePWAInstallClick}
                 className="w-full sm:w-60 flex items-center justify-center gap-3 bg-[#fb792b] hover:bg-orange-600 active:scale-95 text-white text-base font-black px-6 py-4 rounded-2xl shadow-xl shadow-orange-700/30 transition-all transform hover:-translate-y-0.5 uppercase tracking-wider"
               >
                 <Download className="w-5 h-5" /> Install Mobile App
@@ -395,6 +412,96 @@ export default function HomePage() {
       </section>
       
       <PWAInstallPrompt />
+
+      {/* Desktop PWA Onboarding Redirect Modal */}
+      {showDesktopPWA && (
+        <div 
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDesktopPWA(false); }}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-brand-100 animate-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="bg-brand-600 px-6 py-6 text-white text-center relative">
+              <button 
+                onClick={() => setShowDesktopPWA(false)} 
+                className="absolute top-4 right-4 text-white/70 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <Smartphone className="w-7 h-7 text-white animate-pulse" />
+              </div>
+              <h3 className="text-lg font-black tracking-tight">Open on Mobile to Install</h3>
+              <p className="text-blue-100 text-[10px] mt-1 leading-relaxed">
+                Progressive Web App installation is optimized specifically for mobile commuters.
+              </p>
+            </div>
+
+            {/* Body Content */}
+            <div className="p-6 flex flex-col items-center text-center space-y-5">
+              
+              {/* Mock Premium QR Code Container */}
+              <div className="relative group p-4 bg-gray-50 border-2 border-gray-100 rounded-3xl shadow-sm flex items-center justify-center w-40 h-40 select-none">
+                <div className="grid grid-cols-5 gap-2 w-full h-full opacity-90">
+                  {[...Array(25)].map((_, i) => {
+                    const isCorner = i === 0 || i === 4 || i === 20 || i === 24;
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-md transition-all duration-300 ${
+                          isCorner 
+                            ? "bg-brand-600 border border-brand-400" 
+                            : (Math.random() > 0.45 ? "bg-gray-800" : "bg-transparent")
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="absolute inset-0 bg-brand-500/10 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <QrCode className="w-10 h-10 text-brand-600 animate-spin" style={{ animationDuration: '6s' }} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 w-full">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or navigate to link</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-2.5 flex items-center justify-between gap-3 w-full">
+                  <span className="text-xs font-mono text-gray-500 select-all truncate pl-1">
+                    https://wimb.in
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-1 flex-shrink-0 text-[10px] font-bold bg-brand-50 hover:bg-brand-100 text-brand-700 px-2.5 py-1.5 rounded-lg transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 text-green-600" />
+                        <span className="text-green-700">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clipboard className="w-3 h-3" />
+                        <span>Copy Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDesktopPWA(false)}
+                className="w-full bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-black py-2.5 rounded-2xl text-xs transition-all shadow-lg shadow-brand-200 uppercase tracking-wider"
+              >
+                Close instructions
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

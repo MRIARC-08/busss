@@ -54,6 +54,23 @@ export function PWAInstallPrompt() {
     return () => window.removeEventListener("trigger-pwa-install", triggerHandler);
   }, []);
 
+  useEffect(() => {
+    const directHandler = async () => {
+      if (window.innerWidth >= 768) return;
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        setDeferredPrompt(null);
+      } else {
+        // Fallback to visually instruction prompt if browser native installer is busy/unavailable
+        setIsVisible(true);
+        localStorage.removeItem("pwa-prompt-dismissed");
+      }
+    };
+    window.addEventListener("trigger-pwa-direct-install", directHandler);
+    return () => window.removeEventListener("trigger-pwa-direct-install", directHandler);
+  }, [deferredPrompt]);
+
   const handleInstall = async () => {
     if (!deferredPrompt) {
       // Smooth mock install complete for simulated fallbacks

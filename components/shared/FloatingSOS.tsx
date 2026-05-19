@@ -17,7 +17,17 @@ export function FloatingSOS() {
     timerRef.current = setTimeout(async () => {
       isLongPress.current = true;
       try {
-        await fetch("/api/sos", { method: "POST", keepalive: true });
+        const payload: any = {};
+        if (user) {
+          payload.userName = `${user.firstName} ${user.lastName}`;
+          payload.userMobile = user.mobile;
+        }
+        await fetch("/api/sos", { 
+          method: "POST", 
+          keepalive: true,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
       } catch (e) {
         // ignore errors so we don't block dialing
       }

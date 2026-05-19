@@ -5,7 +5,18 @@ export function SOSModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
 
   const handleSOSClick = (label: string, number: string) => {
-    fetch('/api/sos', { method: 'POST', keepalive: true }).catch(() => {});
+    const payload: any = {};
+    if (user) {
+      payload.userName = `${user.firstName} ${user.lastName}`;
+      payload.userMobile = user.mobile;
+    }
+    fetch('/api/sos', { 
+      method: 'POST', 
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+
     if (user) {
       const key = `user-logs-sos-${user.mobile}`;
       const current = JSON.parse(localStorage.getItem(key) || "[]");

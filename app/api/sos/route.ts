@@ -8,7 +8,18 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const ipAddress = getClientIp(req);
-    const userAgent = req.headers.get("user-agent") || "Unknown";
+    let userAgent = req.headers.get("user-agent") || "Unknown";
+
+    // Safely attempt to parse request JSON body for commuter details
+    try {
+      const body = await req.clone().json();
+      if (body && (body.userName || body.userMobile)) {
+        const details = `[User: ${body.userName || "Unknown"} (${body.userMobile || "N/A"})]`;
+        userAgent = `${details} | ${userAgent}`;
+      }
+    } catch (e) {
+      // Body is absent or malformed; default to pure user-agent header
+    }
 
     await (prisma as any).sosAlert.create({
       data: {

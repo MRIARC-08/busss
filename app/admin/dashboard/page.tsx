@@ -768,8 +768,25 @@ export default function AdminDashboard() {
             <DataTab token={token} resource="sos" columns={[
               { key: "id",        label: "ID" },
               { key: "ipAddress", label: "IP Address", render: r => <span className="font-mono text-xs">{r.ipAddress || "Unknown"}</span> },
+              { key: "user",      label: "Commuter / Caller Info", render: r => {
+                const match = r.userAgent?.match(/^\[User:\s*(.*?)\s*\((.*?)\)\]\s*\|\s*(.*)$/);
+                if (match) {
+                  const [, name, mobile] = match;
+                  return (
+                    <div className="flex flex-col">
+                      <span className="font-extrabold text-red-600 text-xs sm:text-sm">{name}</span>
+                      <span className="text-[10px] text-gray-500 font-bold">📞 {mobile}</span>
+                    </div>
+                  );
+                }
+                return <span className="text-xs text-gray-400 italic">Guest / Anonymous Caller</span>;
+              }},
               { key: "createdAt", label: "Timestamp",  render: r => new Date(r.createdAt).toLocaleString("en-IN") },
-              { key: "userAgent", label: "Browser User Agent", render: r => <span className="text-xs text-gray-500 line-clamp-1 max-w-sm" title={r.userAgent}>{r.userAgent || "Unknown"}</span> },
+              { key: "userAgent", label: "Browser User Agent", render: r => {
+                const match = r.userAgent?.match(/^\[User:\s*(.*?)\s*\((.*?)\)\]\s*\|\s*(.*)$/);
+                const displayUA = match ? match[3] : r.userAgent;
+                return <span className="text-xs text-gray-500 line-clamp-1 max-w-xs" title={displayUA}>{displayUA || "Unknown"}</span>;
+              }},
             ]} />
           </div>
         )}

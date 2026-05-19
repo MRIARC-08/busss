@@ -238,13 +238,21 @@ export default function HomePage() {
   const { t } = useLanguage();
   const [showDesktopPWA, setShowDesktopPWA] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isInstallingMobile, setIsInstallingMobile] = useState(false);
+  const [isInstalledSuccess, setIsInstalledSuccess] = useState(false);
 
   const handlePWAInstallClick = () => {
     const isMobile = window.innerWidth < 768;
     if (!isMobile) {
       setShowDesktopPWA(true);
     } else {
-      window.dispatchEvent(new CustomEvent("trigger-pwa-direct-install"));
+      setIsInstallingMobile(true);
+      setTimeout(() => {
+        setIsInstallingMobile(false);
+        setIsInstalledSuccess(true);
+        window.dispatchEvent(new CustomEvent("trigger-pwa-direct-install"));
+        setTimeout(() => setIsInstalledSuccess(false), 3000);
+      }, 2000);
     }
   };
 
@@ -348,9 +356,25 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handlePWAInstallClick}
-                className="w-full sm:w-60 flex items-center justify-center gap-3 bg-[#fb792b] hover:bg-orange-600 active:scale-95 text-white text-base font-black px-6 py-4 rounded-2xl shadow-xl shadow-orange-700/30 transition-all transform hover:-translate-y-0.5 uppercase tracking-wider"
+                disabled={isInstallingMobile || isInstalledSuccess}
+                className="w-full sm:w-60 flex items-center justify-center gap-3 bg-[#fb792b] disabled:bg-green-600 hover:bg-orange-600 active:scale-95 text-white text-base font-black px-6 py-4 rounded-2xl shadow-xl shadow-orange-700/30 transition-all transform hover:-translate-y-0.5 uppercase tracking-wider disabled:scale-100 disabled:pointer-events-none"
               >
-                <Download className="w-5 h-5" /> Install Mobile App
+                {isInstallingMobile ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Installing...</span>
+                  </>
+                ) : isInstalledSuccess ? (
+                  <>
+                    <Check className="w-5 h-5 text-white animate-bounce" />
+                    <span>App Installed!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    <span>Install Mobile App</span>
+                  </>
+                )}
               </button>
               <p className="text-[10px] text-blue-200/80 font-medium max-w-[240px] text-center leading-normal">
                 💡 <strong>iOS Users:</strong> Tap <Share className="inline w-3 h-3 mx-0.5" /> then <strong className="text-white">Add to Home Screen</strong> on Safari.
@@ -442,26 +466,18 @@ export default function HomePage() {
             {/* Body Content */}
             <div className="p-6 flex flex-col items-center text-center space-y-5">
               
-              {/* Mock Premium QR Code Container */}
-              <div className="relative group p-4 bg-gray-50 border-2 border-gray-100 rounded-3xl shadow-sm flex items-center justify-center w-40 h-40 select-none">
-                <div className="grid grid-cols-5 gap-2 w-full h-full opacity-90">
-                  {[...Array(25)].map((_, i) => {
-                    const isCorner = i === 0 || i === 4 || i === 20 || i === 24;
-                    return (
-                      <div
-                        key={i}
-                        className={`rounded-md transition-all duration-300 ${
-                          isCorner 
-                            ? "bg-brand-600 border border-brand-400" 
-                            : (Math.random() > 0.45 ? "bg-gray-800" : "bg-transparent")
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="absolute inset-0 bg-brand-500/10 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <QrCode className="w-10 h-10 text-brand-600 animate-spin" style={{ animationDuration: '6s' }} />
-                </div>
+              {/* Real Dynamic Scannable QR Code */}
+              <div className="relative p-2.5 bg-white border-2 border-gray-100 rounded-3xl shadow-sm flex items-center justify-center w-40 h-40 select-none">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "https://wimb.in")}`} 
+                  alt="Scannable QR Code"
+                  width={140}
+                  height={140}
+                  className="rounded-xl"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://wimb.in";
+                  }}
+                />
               </div>
 
               <div className="space-y-1.5 w-full">

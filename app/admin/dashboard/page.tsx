@@ -6,10 +6,13 @@ import {
   LogOut, Shield, RefreshCw, CheckCircle,
   Clock, AlertTriangle, XCircle, Loader2, Search,
   ChevronDown, ChevronUp, X, User, Menu, Star, Phone,
-  MessageSquare,
+  MessageSquare, LocateFixed,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 
-type Tab = "overview" | "reports" | "buses" | "routes" | "users" | "feedback";
+const LiveMapTab = dynamic(() => import("./LiveMapTab"), { ssr: false });
+
+type Tab = "overview" | "live" | "reports" | "buses" | "routes" | "users" | "feedback";
 
 const statusColour: Record<string, string> = {
   OPEN:        "bg-red-100 text-red-700 border-red-200",
@@ -618,6 +621,7 @@ export default function AdminDashboard() {
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: "overview", label: "Overview",  icon: LayoutDashboard },
+    { id: "live",     label: "Live Map",  icon: LocateFixed },
     { id: "reports",  label: "Reports",   icon: FileText },
     { id: "feedback", label: "Feedback",  icon: MessageSquare },
     { id: "buses",    label: "Buses",     icon: Bus },
@@ -696,7 +700,7 @@ export default function AdminDashboard() {
         <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
           <h1 className="text-xl sm:text-2xl font-black text-gray-800 capitalize">
-            {tab === "overview" ? "Dashboard Overview" : tab === "feedback" ? "Passenger Feedback" : tab}
+            {tab === "overview" ? "Dashboard Overview" : tab === "feedback" ? "Passenger Feedback" : tab === "live" ? "Live Fleet Tracking" : tab}
           </h1>
           <p className="text-gray-500 text-sm mt-1">Where Is My Bus — Admin Control Panel</p>
         </div>
@@ -741,6 +745,7 @@ export default function AdminDashboard() {
 
         {tab === "reports"  && <ReportsTab token={token} />}
         {tab === "feedback" && <FeedbackTab token={token} />}
+        {tab === "live"     && <LiveMapTab />}
 
         {tab === "buses" && (
           <div className="space-y-4">

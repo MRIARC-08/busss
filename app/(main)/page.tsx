@@ -477,17 +477,25 @@ export default function HomePage() {
             <div className="p-6 flex flex-col items-center text-center space-y-5">
               
               {/* Real Dynamic Scannable QR Code */}
-              <div className="relative p-2.5 bg-white border-2 border-gray-100 rounded-3xl shadow-sm flex items-center justify-center w-40 h-40 select-none">
+              <div className="relative p-2 bg-white border-2 border-brand-100 rounded-3xl shadow-md flex items-center justify-center w-40 h-40 select-none group">
+                {/* Sleek outer ring glow effect */}
+                <div className="absolute inset-1 rounded-2xl border border-dashed border-brand-200 pointer-events-none group-hover:scale-105 transition-transform duration-350" />
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "https://wimb.in")}`} 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=213d77&bgcolor=ffffff&qzone=1&data=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "https://wimb.in")}`} 
                   alt="Scannable QR Code"
                   width={140}
                   height={140}
-                  className="rounded-xl"
+                  className="rounded-2xl"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://wimb.in";
+                    (e.target as HTMLImageElement).src = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=213d77&bgcolor=ffffff&qzone=1&data=https://wimb.in";
                   }}
                 />
+                {/* Central branded badge floating right in the absolute center */}
+                <div className="absolute w-8 h-8 rounded-full bg-white shadow border border-gray-100 flex items-center justify-center p-0.5 pointer-events-none">
+                  <div className="w-full h-full rounded-full bg-brand-600 flex items-center justify-center text-[8px] text-white font-black tracking-tighter">
+                    BUS
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5 w-full">

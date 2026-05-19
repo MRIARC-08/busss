@@ -55,7 +55,7 @@ export async function GET(req: Request) {
   }
 
   if (resource === "sos") {
-    const sos = await prisma.sosAlert.findMany({
+    const sos = await (prisma as any).sosAlert.findMany({
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(sos);

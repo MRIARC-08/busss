@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const ipAddress = getClientIp(req);
     const userAgent = req.headers.get("user-agent") || "Unknown";
 
-    await prisma.sosAlert.create({
+    await (prisma as any).sosAlert.create({
       data: {
         ipAddress: String(ipAddress).slice(0, 45),
         userAgent: String(userAgent).slice(0, 255),
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const alerts = await prisma.sosAlert.findMany({
+    const alerts = await (prisma as any).sosAlert.findMany({
       orderBy: { createdAt: "desc" },
       take: 50
     });

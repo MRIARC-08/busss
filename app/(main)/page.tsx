@@ -240,6 +240,14 @@ export default function HomePage() {
   const [copied, setCopied] = useState(false);
   const [isInstallingMobile, setIsInstallingMobile] = useState(false);
   const [isInstalledSuccess, setIsInstalledSuccess] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const checkStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+      setIsStandalone(!!checkStandalone);
+    }
+  }, []);
 
   const handlePWAInstallClick = () => {
     const isMobile = window.innerWidth < 768;
@@ -308,82 +316,84 @@ export default function HomePage() {
       </div>
 
       {/* PWA Promotion Hero Banner Card */}
-      <section className="bg-white pb-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-gradient-to-br from-brand-600 to-indigo-700 rounded-3xl p-8 lg:p-12 text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 border border-brand-500/20">
-            
-            {/* Floating circles background details */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-500/30 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="flex-1 space-y-4 text-center md:text-left">
-              <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-100">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-                Bilingual Delhi NCR PWA App
-              </span>
-              <h2 className="text-3xl lg:text-4xl font-black tracking-tight leading-tight">
-                Track Offline. Access Faster.<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">
-                  Install Our Native Mobile App
-                </span>
-              </h2>
-              <p className="text-blue-100 text-sm sm:text-base leading-relaxed max-w-xl">
-                Never wait in queues or open browsers again! Save Where Is My Bus as a native shortcut directly onto your home screen. Fully compatible with Android, iOS, and tablets.
-              </p>
+      {!isStandalone && (
+        <section className="bg-white pb-16 px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-gradient-to-br from-brand-600 to-indigo-700 rounded-3xl p-8 lg:p-12 text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 border border-brand-500/20">
               
-              {/* Key checklist items */}
-              <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-bold text-blue-100 max-w-md mx-auto md:mx-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
-                  <span>Offline Route Search</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
-                  <span>Zero Storage Required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
-                  <span>Real-Time ETAs</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
-                  <span>Emergency SOS Tracker</span>
+              {/* Floating circles background details */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-500/30 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="flex-1 space-y-4 text-center md:text-left">
+                <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-100">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+                  Bilingual Delhi NCR PWA App
+                </span>
+                <h2 className="text-3xl lg:text-4xl font-black tracking-tight leading-tight">
+                  Track Offline. Access Faster.<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">
+                    Install Our Native Mobile App
+                  </span>
+                </h2>
+                <p className="text-blue-100 text-sm sm:text-base leading-relaxed max-w-xl">
+                  Never wait in queues or open browsers again! Save Where Is My Bus as a native shortcut directly onto your home screen. Fully compatible with Android, iOS, and tablets.
+                </p>
+                
+                {/* Key checklist items */}
+                <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-bold text-blue-100 max-w-md mx-auto md:mx-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
+                    <span>Offline Route Search</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
+                    <span>Zero Storage Required</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
+                    <span>Real-Time ETAs</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-amber-300 font-extrabold">✓</div>
+                    <span>Emergency SOS Tracker</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex-shrink-0 w-full md:w-auto flex flex-col gap-3.5 justify-center items-center">
-              <button
-                type="button"
-                onClick={handlePWAInstallClick}
-                disabled={isInstallingMobile || isInstalledSuccess}
-                className="w-full sm:w-60 flex items-center justify-center gap-3 bg-[#fb792b] disabled:bg-green-600 hover:bg-orange-600 active:scale-95 text-white text-base font-black px-6 py-4 rounded-2xl shadow-xl shadow-orange-700/30 transition-all transform hover:-translate-y-0.5 uppercase tracking-wider disabled:scale-100 disabled:pointer-events-none"
-              >
-                {isInstallingMobile ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Installing...</span>
-                  </>
-                ) : isInstalledSuccess ? (
-                  <>
-                    <Check className="w-5 h-5 text-white animate-bounce" />
-                    <span>App Installed!</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-5 h-5" />
-                    <span>Install Mobile App</span>
-                  </>
-                )}
-              </button>
-              <p className="text-[10px] text-blue-200/80 font-medium max-w-[240px] text-center leading-normal">
-                💡 <strong>iOS Users:</strong> Tap <Share className="inline w-3 h-3 mx-0.5" /> then <strong className="text-white">Add to Home Screen</strong> on Safari.
-              </p>
-            </div>
+              <div className="flex-shrink-0 w-full md:w-auto flex flex-col gap-3.5 justify-center items-center">
+                <button
+                  type="button"
+                  onClick={handlePWAInstallClick}
+                  disabled={isInstallingMobile || isInstalledSuccess}
+                  className="w-full sm:w-60 flex items-center justify-center gap-3 bg-[#fb792b] disabled:bg-green-600 hover:bg-orange-600 active:scale-95 text-white text-base font-black px-6 py-4 rounded-2xl shadow-xl shadow-orange-700/30 transition-all transform hover:-translate-y-0.5 uppercase tracking-wider disabled:scale-100 disabled:pointer-events-none"
+                >
+                  {isInstallingMobile ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Installing...</span>
+                    </>
+                  ) : isInstalledSuccess ? (
+                    <>
+                      <Check className="w-5 h-5 text-white animate-bounce" />
+                      <span>App Installed!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      <span>Install Mobile App</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[10px] text-blue-200/80 font-medium max-w-[240px] text-center leading-normal">
+                  💡 <strong>iOS Users:</strong> Tap <Share className="inline w-3 h-3 mx-0.5" /> then <strong className="text-white">Add to Home Screen</strong> on Safari.
+                </p>
+              </div>
 
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Passenger Experience & Contact Section ─────────────────────────── */}
       <section id="contact" className="bg-gradient-to-br from-brand-700 via-brand-800 to-blue-900 py-10 lg:py-16 px-4">

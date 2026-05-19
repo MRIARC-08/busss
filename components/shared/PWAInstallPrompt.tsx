@@ -41,6 +41,15 @@ export function PWAInstallPrompt() {
     }
   }, []);
 
+  useEffect(() => {
+    const triggerHandler = () => {
+      setIsVisible(true);
+      localStorage.removeItem("pwa-prompt-dismissed");
+    };
+    window.addEventListener("trigger-pwa-install", triggerHandler);
+    return () => window.removeEventListener("trigger-pwa-install", triggerHandler);
+  }, []);
+
   const handleInstall = async () => {
     if (!deferredPrompt) {
       // Smooth mock install complete for simulated fallbacks

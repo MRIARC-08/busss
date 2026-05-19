@@ -23,6 +23,7 @@ export function SOSModal({ onClose }: { onClose: () => void }) {
             { label: "Child Helpline",      number: "1098",     color: "bg-purple-600"},
           ].map(({ label, number, color }) => (
             <a key={number} href={`tel:${number}`}
+              onClick={() => fetch('/api/sos', { method: 'POST' }).catch(() => {})}
               className={`flex items-center justify-between w-full ${color} text-white px-5 py-3.5 rounded-xl font-bold text-sm hover:opacity-90 active:scale-95 transition-all`}>
               <span className="flex items-center gap-2"><Phone className="w-4 h-4" />{label}</span>
               <span className="font-mono text-lg tracking-wider">{number}</span>

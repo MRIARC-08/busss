@@ -539,7 +539,15 @@ function DataTab({ token, resource, columns, onRowClick, refreshKey }: {
   useEffect(() => {
     setLoading(true);
     fetch(`/api/admin/data?resource=${resource}`, { headers: { "x-admin-token": token } })
-      .then(r => r.json()).then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); });
+      .then(async r => {
+        if (!r.ok) {
+          console.error("API error", await r.text());
+          return [];
+        }
+        return r.json();
+      })
+      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(err => { console.error("Fetch error:", err); setRows([]); setLoading(false); });
   }, [token, resource, refreshKey]);
 
   const filtered = search

@@ -50,7 +50,7 @@ export function PWAInstallPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 left-4 right-4 z-[9999] sm:top-auto sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-sm sm:w-full">
+    <div id="tour-pwa-prompt" className="fixed top-4 left-4 right-4 z-[9999] sm:top-auto sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-sm sm:w-full">
       <div className="bg-white rounded-2xl shadow-2xl border border-brand-100 p-4 flex items-center gap-3 animate-in slide-in-from-top-5 sm:slide-in-from-bottom-5 fade-in duration-500">
         <div className="flex-shrink-0">
           <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center overflow-hidden border border-gray-100 p-1">

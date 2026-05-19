@@ -13,6 +13,7 @@ export function GuidedTour() {
   const [windowSize, setWindowSize] = useState({ w: 1000, h: 1000 });
 
   const [hasAuthModal, setHasAuthModal] = useState(false);
+  const [hasPwaPrompt, setHasPwaPrompt] = useState(false);
 
   const getStepsForPage = (path: string) => {
     if (hasAuthModal) {
@@ -21,12 +22,18 @@ export function GuidedTour() {
       ];
     }
     if (path === "/") {
-      return [
+      const steps = [
         { id: "tour-lang", title: "Bilingual", desc: "Easily switch between English and Hindi." },
         { id: "tour-search", title: "Find Your Bus", desc: "Search for buses. Try searching now, or click Next to explore other features!" },
-        { id: "tour-report", title: "Report Issues", desc: "Report delays, overcrowding, or unsafe behavior." },
-        { id: "tour-sos", title: "Emergency SOS", desc: "Hold this button anytime you feel unsafe." },
       ];
+      if (hasPwaPrompt) {
+        steps.push({ id: "tour-pwa-prompt", title: "Install Mobile App", desc: "Install Where Is My Bus as a native Progressive Web App (PWA) to unlock full offline schedules and home screen access." });
+      }
+      steps.push(
+        { id: "tour-report", title: "Report Issues", desc: "Report delays, overcrowding, or unsafe behavior." },
+        { id: "tour-sos", title: "Emergency SOS", desc: "Hold this button anytime you feel unsafe." }
+      );
+      return steps;
     }
     if (path.startsWith("/search")) {
       return [
@@ -48,11 +55,13 @@ export function GuidedTour() {
 
   useEffect(() => {
     // Monitor modal existence in DOM
-    const checkModal = () => {
+    const checkDOM = () => {
       const el = document.getElementById("tour-auth-modal");
       setHasAuthModal(!!el);
+      const pwa = document.getElementById("tour-pwa-prompt");
+      setHasPwaPrompt(!!pwa);
     };
-    const interval = setInterval(checkModal, 300);
+    const interval = setInterval(checkDOM, 300);
     return () => clearInterval(interval);
   }, []);
 

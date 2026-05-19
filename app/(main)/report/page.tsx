@@ -34,6 +34,8 @@ function ReportContent() {
   const [loading,     setLoading]     = useState(false);
   const [submitted,   setSubmitted]   = useState(false);
   const [showSOS,     setShowSOS]     = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [images,      setImages]      = useState<{ file: File; preview: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -57,7 +59,8 @@ function ReportContent() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!issueType || !description) {
-      alert("Please select an issue type and write a description");
+      setErrorMessage("Please select an issue type and write a description to submit your report.");
+      setShowErrorModal(true);
       return;
     }
     setLoading(true);
@@ -111,6 +114,34 @@ function ReportContent() {
   return (
     <>
       {showSOS && <SOSModal onClose={() => setShowSOS(false)} />}
+      
+      {showErrorModal && (
+        <div 
+          className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowErrorModal(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-red-100 animate-in zoom-in-95 duration-200">
+            <div className="bg-red-50 p-6 flex flex-col items-center text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 animate-bounce">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-gray-900">Missing Information</h3>
+                <p className="text-sm text-gray-500 mt-2 font-medium leading-relaxed">
+                  {errorMessage}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowErrorModal(false)}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors shadow-lg shadow-red-200"
+              >
+                Okay, got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}

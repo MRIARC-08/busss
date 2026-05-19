@@ -6,7 +6,7 @@ import PopularRoutes from "@/components/layout/PopularRoutes";
 import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useState, useEffect } from "react";
-import { Star, Send, MessageSquare, ChevronLeft, ChevronRight, ShieldCheck, Wrench, UserCheck, BadgeCheck, Map, Download, Sparkles, Share, Smartphone, QrCode, Clipboard, Check } from "lucide-react";
+import { Star, Send, MessageSquare, ChevronLeft, ChevronRight, ShieldCheck, Wrench, UserCheck, BadgeCheck, Map, Download, Sparkles, Share, Smartphone, QrCode, Clipboard, Check, X } from "lucide-react";
 
 // ── Static passenger testimonials ────────────────────────────────────────────
 const TESTIMONIALS = [

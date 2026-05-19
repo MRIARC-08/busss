@@ -8,7 +8,7 @@ import {
   Map, Users, Sparkles, Clock, Globe, Download
 } from "lucide-react";
 
-// Bilingual content object
+// Bilingual structured content object
 const DOCS = {
   en: {
     title: "Help & Documentation",
@@ -27,16 +27,20 @@ const DOCS = {
         title: "Real-time Live GPS Tracking",
         icon: Compass,
         desc: "Watch your transit route move live on detailed interactive maps with zero latency.",
-        content: `
-### Real-world Road Geometries
-Unlike typical tracking apps that show straight lines between stops, our system queries and renders actual physical road alignments using open-source routing APIs. This ensures you know the exact path your bus is taking.
-
-### High-frequency Telemetry
-Each bus transmits active GPS telemetry coordinates every 10–20 seconds. This live ping is rendered instantly as a moving icon on the map with a glowing animation to indicate active communication.
-
-### Real-time ETAs
-Instead of relying on rigid, outdated paper timetables, our proprietary prediction engine calculates arriving speed, remaining physical distance along the road network, and historical traffic indexes to predict arriving time dynamically.
-        `
+        content: [
+          { 
+            subtitle: "Real-world Road Geometries", 
+            body: "Unlike typical tracking apps that show straight lines between stops, our system queries and renders actual physical road alignments using open-source routing APIs. This ensures you know the exact path your bus is taking." 
+          },
+          { 
+            subtitle: "High-frequency Telemetry", 
+            body: "Each bus transmits active GPS telemetry coordinates every 10–20 seconds. This live ping is rendered instantly as a moving icon on the map with a glowing animation to indicate active communication." 
+          },
+          { 
+            subtitle: "Real-time ETAs", 
+            body: "Instead of relying on rigid, outdated paper timetables, our proprietary prediction engine calculates arriving speed, remaining physical distance along the road network, and historical traffic indexes to predict arriving time dynamically." 
+          }
+        ]
       },
       {
         id: "sos",
@@ -44,19 +48,20 @@ Instead of relying on rigid, outdated paper timetables, our proprietary predicti
         title: "Emergency SOS Integration (100)",
         icon: ShieldAlert,
         desc: "Our high-priority life safety feature designed to keep commuters safe during critical times.",
-        content: `
-### One-Tap Dispatch
-In critical situations, holding down the red floating SOS button for 2 seconds opens a physical dialer connected to the regional police emergency number (100).
-
-### Advanced Telemetry Logging
-When clicked, the app sends an secure background request containing:
-- **Timestamp** of the incident.
-- **Client IP address** for precise spatial locating.
-- **Active Bus ID** (if triggered while tracking).
-
-### Network Hardening (Keepalive)
-Using modern HTML5 \`keepalive: true\` parameters, we ensure that the network logs reach our databases even if the user closes the browser or switches to the phone app.
-        `
+        content: [
+          { 
+            subtitle: "One-Tap Dispatch", 
+            body: "In critical situations, holding down the red floating SOS button for 2 seconds opens a physical dialer connected to the regional police emergency number (100)." 
+          },
+          { 
+            subtitle: "Advanced Telemetry Logging", 
+            body: "When clicked, the app sends an secure background request containing the incident timestamp, client IP address for precise spatial locating, and the active Bus ID (if triggered while tracking)." 
+          },
+          { 
+            subtitle: "Network Hardening (Keepalive)", 
+            body: "Using modern HTML5 keepalive parameters, we ensure that the network logs reach our databases even if the user immediately closes the browser or switches to the phone dialer app." 
+          }
+        ]
       },
       {
         id: "reporting",
@@ -64,13 +69,16 @@ Using modern HTML5 \`keepalive: true\` parameters, we ensure that the network lo
         title: "Community Issue Reporting",
         icon: MessageSquare,
         desc: "Lodge real-time issues on overcrowding, delays, or broken amenities directly to administrators.",
-        content: `
-### Automated Bus ID Passing
-If you experience an issue on a specific bus, tapping "Report" directly from that bus's tracking page pre-fills the Bus ID inside the form automatically so you don't have to memorize it.
-
-### Admin Review Portal
-All community feedback is monitored on our advanced Administrator Dashboard. Admins inspect issue locations, review user descriptions, and have permissions to securely delete outdated feedback when resolved.
-        `
+        content: [
+          { 
+            subtitle: "Automated Bus ID Passing", 
+            body: "If you experience an issue on a specific bus, tapping 'Report' directly from that bus's tracking page pre-fills the Bus ID inside the form automatically so you don't have to memorize it." 
+          },
+          { 
+            subtitle: "Admin Review Portal", 
+            body: "All community feedback is monitored on our advanced Administrator Dashboard. Admins inspect issue locations, review user descriptions, and have permissions to securely delete outdated feedback when resolved." 
+          }
+        ]
       },
       {
         id: "pwa",
@@ -78,13 +86,16 @@ All community feedback is monitored on our advanced Administrator Dashboard. Adm
         title: "Progressive Web App (PWA) Install",
         icon: Download,
         desc: "Install the app directly on your mobile device or desktop for instant standalone access.",
-        content: `
-### Home Screen Access
-To experience full-screen standalone mode, tap the floating "Install App" banner at the bottom of the home screen, or select "Add to Home Screen" inside your web browser.
-
-### Offline Operation
-The application caches key route details, localized texts, and UI layouts to ensure you can load the schedule and contact numbers even in areas with zero cellular reception.
-        `
+        content: [
+          { 
+            subtitle: "Home Screen Access", 
+            body: "To experience full-screen standalone mode, tap the floating 'Install App' banner at the bottom of the home screen, or select 'Add to Home Screen' inside your web browser." 
+          },
+          { 
+            subtitle: "Offline Operation", 
+            body: "The application caches key route details, localized texts, and UI layouts to ensure you can load the schedule and contact numbers even in areas with zero cellular reception." 
+          }
+        ]
       },
       {
         id: "bilingual",
@@ -92,13 +103,16 @@ The application caches key route details, localized texts, and UI layouts to ens
         title: "Multi-Language Localization",
         icon: Globe,
         desc: "Switch dynamically between English and Hindi with full local settings preservation.",
-        content: `
-### Seamless Switching
-Tap the language toggle in the top bar to translate the entire website instantly.
-
-### Persistent Preferences
-Your language and customized font preferences are saved in your browser's persistent storage, ensuring you never have to reconfigure them on subsequent visits.
-        `
+        content: [
+          { 
+            subtitle: "Seamless Switching", 
+            body: "Tap the language toggle in the top bar to translate the entire website instantly." 
+          },
+          { 
+            subtitle: "Persistent Preferences", 
+            body: "Your language and customized font preferences are saved in your browser's persistent storage, ensuring you never have to reconfigure them on subsequent visits." 
+          }
+        ]
       }
     ],
     faqs: [
@@ -133,16 +147,20 @@ Your language and customized font preferences are saved in your browser's persis
         title: "वास्तविक समय लाइव जीपीएस ट्रैकिंग",
         icon: Compass,
         desc: "बिना किसी देरी के विस्तृत इंटरैक्टिव मानचित्रों पर अपने मार्ग को लाइव देखें।",
-        content: `
-### वास्तविक सड़क मार्ग
-अन्य ट्रैकिंग ऐप्स के विपरीत जो स्टॉप के बीच सीधी रेखाएं दिखाते हैं, हमारा सिस्टम वास्तविक सड़क संरेखण का उपयोग करता है। इससे सुनिश्चित होता है कि आपको बस का सटीक मार्ग पता हो।
-
-### उच्च आवृत्ति टेलीमेट्री
-प्रत्येक बस हर 10-20 सेकंड में जीपीएस टेलीमेट्री कोऑर्डिनेट्स भेजती है। यह लाइव पिंग मानचित्र पर एक सक्रिय बस आइकन के रूप में तुरंत रेंडर होता है।
-
-### वास्तविक समय आगमन समय (ETA)
-पुराने टाइमटेबल पर निर्भर रहने के बजाय, हमारा भविष्यवाणी इंजन दूरी, गति और यातायात के आधार पर गतिशील रूप से आगमन समय की गणना करता है।
-        `
+        content: [
+          { 
+            subtitle: "वास्तविक सड़क मार्ग", 
+            body: "अन्य ट्रैकिंग ऐप्स के विपरीत जो स्टॉप के बीच सीधी रेखाएं दिखाते हैं, हमारा सिस्टम वास्तविक सड़क संरेखण का उपयोग करता है। इससे सुनिश्चित होता है कि आपको बस का सटीक मार्ग पता हो।" 
+          },
+          { 
+            subtitle: "उच्च आवृत्ति टेलीमेट्री", 
+            body: "प्रत्येक बस हर 10-20 सेकंड में जीपीएस टेलीमेट्री कोऑर्डिनेट्स भेजती है। यह लाइव पिंग मानचित्र पर एक सक्रिय बस आइकन के रूप में तुरंत रेंडर होता है।" 
+          },
+          { 
+            subtitle: "वास्तविक समय आगमन समय (ETA)", 
+            body: "पुराने टाइमटेबल पर निर्भर रहने के बजाय, हमारा भविष्यवाणी इंजन दूरी, गति और यातायात के आधार पर गतिशील रूप से आगमन समय की गणना करता है।" 
+          }
+        ]
       },
       {
         id: "sos",
@@ -150,19 +168,20 @@ Your language and customized font preferences are saved in your browser's persis
         title: "आपातकालीन एसओएस एकीकरण (100)",
         icon: ShieldAlert,
         desc: "कम्यूटर्स को संकट के समय सुरक्षित रखने के लिए डिज़ाइन की गई हमारी उच्च-प्राथमिकता वाली जीवन सुरक्षा सुविधा।",
-        content: `
-### एक-टैप डिस्पैच
-गंभीर परिस्थितियों में, लाल तैरते हुए SOS बटन को 2 सेकंड तक दबाए रखने से क्षेत्रीय पुलिस आपातकालीन नंबर (100) डायल करने के लिए मोबाइल डायलर खुल जाता है।
-
-### उन्नत टेलीमेट्री लॉगिंग
-क्लिक करने पर, ऐप निम्न डेटा के साथ एक सुरक्षित पृष्ठभूमि अनुरोध भेजता है:
-- घटना का **समय**।
-- सटीक स्थान के लिए **क्लाइंट आईपी पता**।
-- **सक्रिय बस आईडी** (यदि ट्रैकिंग के दौरान ट्रिगर किया गया हो)।
-
-### नेटवर्क सुरक्षा (Keepalive)
-आधुनिक HTML5 \`keepalive: true\` मापदंडों का उपयोग करते हुए, हम सुनिश्चित करते हैं कि नेटवर्क लॉग हमारे डेटाबेस तक पहुंचें, भले ही उपयोगकर्ता ब्राउज़र बंद कर दे।
-        `
+        content: [
+          { 
+            subtitle: "एक-टैप डिस्पैच", 
+            body: "गंभीर परिस्थितियों में, लाल तैरते हुए SOS बटन को 2 सेकंड तक दबाए रखने से क्षेत्रीय पुलिस आपातकालीन नंबर (100) डायल करने के लिए मोबाइल डायलर खुल जाता है।" 
+          },
+          { 
+            subtitle: "उन्नत टेलीमेट्री लॉगिंग", 
+            body: "क्लिक करने पर, ऐप घटना का समय, सटीक स्थान के लिए क्लाइंट आईपी पता और सक्रिय बस आईडी (यदि ट्रैकिंग के दौरान ट्रिगर किया गया हो) युक्त एक सुरक्षित पृष्ठभूमि अनुरोध भेजता है।" 
+          },
+          { 
+            subtitle: "नेटवर्क सुरक्षा (Keepalive)", 
+            body: "आधुनिक HTML5 keepalive मापदंडों का उपयोग करते हुए, हम सुनिश्चित करते हैं कि नेटवर्क लॉग हमारे डेटाबेस तक पहुंचें, भले ही उपयोगकर्ता ब्राउज़र तुरंत बंद कर दे।" 
+          }
+        ]
       },
       {
         id: "reporting",
@@ -170,13 +189,16 @@ Your language and customized font preferences are saved in your browser's persis
         title: "सामुदायिक समस्या रिपोर्टिंग",
         icon: MessageSquare,
         desc: "भीड़भाड़, देरी या टूटी हुई सुविधाओं की वास्तविक समय की समस्याओं को सीधे प्रशासकों को रिपोर्ट करें।",
-        content: `
-### स्वचालित बस आईडी
-यदि आप किसी विशिष्ट बस में समस्या का सामना करते हैं, तो उस बस के ट्रैकिंग पेज से सीधे "रिपोर्ट" पर टैप करने से फॉर्म के भीतर बस आईडी स्वचालित रूप से भर जाती है।
-
-### व्यवस्थापक समीक्षा पोर्टल
-सभी सामुदायिक फीडबैक की निगरानी हमारे उन्नत एडमिनिस्ट्रेटर डैशबोर्ड पर की जाती है। व्यवस्थापक समस्याओं की समीक्षा करते हैं और उनके पास फीडबैक को सुरक्षित रूप से हटाने की अनुमति होती है।
-        `
+        content: [
+          { 
+            subtitle: "स्वचालित बस आईडी", 
+            body: "यदि आप किसी विशिष्ट बस में समस्या का सामना करते हैं, तो उस बस के ट्रैकिंग पेज से सीधे 'रिपोर्ट' पर टैप करने से फॉर्म के भीतर बस आईडी स्वचालित रूप से भर जाती है।" 
+          },
+          { 
+            subtitle: "व्यवस्थापक समीक्षा पोर्टल", 
+            body: "सभी सामुदायिक फीडबैक की निगरानी हमारे उन्नत एडमिनिस्ट्रेटर डैशबोर्ड पर की जाती है। व्यवस्थापक समस्याओं की समीक्षा करते हैं और उनके पास फीडबैक को सुरक्षित रूप से हटाने की अनुमति होती है।" 
+          }
+        ]
       },
       {
         id: "pwa",
@@ -184,13 +206,16 @@ Your language and customized font preferences are saved in your browser's persis
         title: "प्रोग्रेसिव वेब ऐप (PWA) इंस्टॉल करें",
         icon: Download,
         desc: "त्वरित उपयोग के लिए ऐप को सीधे अपने मोबाइल डिवाइस या डेस्कटॉप पर इंस्टॉल करें।",
-        content: `
-### होम स्क्रीन एक्सेस
-स्टैंडअलोन मोड का अनुभव करने के लिए, होम स्क्रीन के नीचे तैरते हुए "ऐप इंस्टॉल करें" बैनर पर टैप करें, या अपने ब्राउज़र में "होम स्क्रीन पर जोड़ें" चुनें।
-
-### ऑफ़लाइन संचालन
-एप्लिकेशन प्रमुख मार्ग विवरण और संपर्क नंबरों को कैश करता है ताकि आप बिना मोबाइल नेटवर्क के भी आवश्यक जानकारी लोड कर सकें।
-        `
+        content: [
+          { 
+            subtitle: "होम स्क्रीन एक्सेस", 
+            body: "स्टैंडअलोन मोड का अनुभव करने के लिए, होम स्क्रीन के नीचे तैरते हुए 'ऐप इंस्टॉल करें' बैनर पर टैप करें, या अपने ब्राउज़र में 'होम स्क्रीन पर जोड़ें' चुनें।" 
+          },
+          { 
+            subtitle: "ऑफ़लाइन संचालन", 
+            body: "एप्लिकेशन प्रमुख मार्ग विवरण और संपर्क नंबरों को कैश करता है ताकि आप बिना मोबाइल नेटवर्क के भी आवश्यक जानकारी लोड कर सकें।" 
+          }
+        ]
       },
       {
         id: "bilingual",
@@ -198,13 +223,16 @@ Your language and customized font preferences are saved in your browser's persis
         title: "बहुभाषी अनुवाद",
         icon: Globe,
         desc: "पसंदीदा सेटिंग्स के साथ अंग्रेजी और हिंदी के बीच आसानी से स्विच करें।",
-        content: `
-### आसान बदलाव
-पूरी वेबसाइट का तुरंत अनुवाद करने के लिए शीर्ष बार में भाषा टॉगल पर टैप करें।
-
-### स्थायी प्राथमिकताएं
-आपकी भाषा और फ़ॉन्ट प्राथमिकताएं आपके ब्राउज़र में सहेज ली जाती हैं, जिससे अगली बार आने पर आपको इन्हें फिर से सेट नहीं करना पड़ता।
-        `
+        content: [
+          { 
+            subtitle: "आसान बदलाव", 
+            body: "पूरी वेबसाइट का तुरंत अनुवाद करने के लिए शीर्ष बार में भाषा टॉगल पर टैप करें।" 
+          },
+          { 
+            subtitle: "स्थायी प्राथमिकताएं", 
+            body: "आपकी भाषा और फ़ॉन्ट प्राथमिकताएं आपके ब्राउज़र में सहेज ली जाती हैं, जिससे अगली बार आने पर आपको इन्हें फिर से सेट नहीं करना पड़ता।" 
+          }
+        ]
       }
     ],
     faqs: [
@@ -236,7 +264,10 @@ export default function HelpPage() {
     const matchesSearch = 
       sec.title.toLowerCase().includes(search.toLowerCase()) || 
       sec.desc.toLowerCase().includes(search.toLowerCase()) ||
-      sec.content.toLowerCase().includes(search.toLowerCase());
+      sec.content.some(item => 
+        item.subtitle.toLowerCase().includes(search.toLowerCase()) || 
+        item.body.toLowerCase().includes(search.toLowerCase())
+      );
     const matchesCategory = activeCategory === "all" || sec.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
@@ -331,8 +362,19 @@ export default function HelpPage() {
                     {sec.desc}
                   </p>
 
-                  <div className="prose prose-blue max-w-none text-gray-600 text-sm sm:text-base leading-relaxed space-y-4 whitespace-pre-line">
-                    {sec.content}
+                  {/* Render content structured layout cleanly without raw markdown parsing issues */}
+                  <div className="space-y-6">
+                    {sec.content.map((item, index) => (
+                      <div key={index} className="space-y-1.5">
+                        <h3 className="font-extrabold text-gray-800 text-base sm:text-lg flex items-center gap-2">
+                          <span className="w-1.5 h-3 bg-brand-500 rounded-full" />
+                          {item.subtitle}
+                        </h3>
+                        <p className="text-gray-500 text-sm sm:text-base leading-relaxed pl-3.5">
+                          {item.body}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );

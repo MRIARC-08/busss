@@ -25,7 +25,7 @@ const severityColour: Record<string, string> = {
   CRITICAL:  "bg-red-100 text-red-700",
 };
 
-function FeedbackTab() {
+function FeedbackTab({ token }: { token: string }) {
   const [items, setItems]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +87,14 @@ function FeedbackTab() {
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-3 leading-relaxed">"{f.text}"</p>
+            <div className="mt-3 text-right">
+              <button onClick={async () => {
+                if (confirm("Delete this feedback?")) {
+                  await fetch(`/api/feedback?id=${f.id}`, { method: "DELETE", headers: { "x-admin-token": token } });
+                  setItems(prev => prev.filter(i => i.id !== f.id));
+                }
+              }} className="text-xs text-red-500 font-bold hover:underline">Delete</button>
+            </div>
           </div>
         ))}
       </div>
@@ -164,12 +172,26 @@ function BusModal({ bus, token, onClose, onSave }: { bus: any; token: string; on
     e.preventDefault();
     setLoading(true); setError("");
     try {
+      const isNew = !bus.id;
       const res = await fetch("/api/admin/data?resource=buses", {
-        method: "PATCH",
+        method: isNew ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({ id: bus.id, ...formData }),
+        body: JSON.stringify(isNew ? formData : { id: bus.id, ...formData }),
       });
-      if (!res.ok) throw new Error("Failed to update");
+      if (!res.ok) throw new Error("Failed to save");
+      onSave();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Are you sure you want to delete this bus?")) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/admin/data?resource=buses&id=${bus.id}`, { method: "DELETE", headers: { "x-admin-token": token } });
       onSave();
     } catch (err: any) {
       setError(err.message);
@@ -220,9 +242,16 @@ function BusModal({ bus, token, onClose, onSave }: { bus: any; token: string; on
             <input type="checkbox" id="bus-active" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="w-4 h-4" />
             <label htmlFor="bus-active" className="text-sm font-semibold text-gray-700 cursor-pointer">Is Active</label>
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
-            {loading ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" disabled={loading} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+            {bus.id && (
+              <button type="button" onClick={handleDelete} disabled={loading} className="bg-red-100 hover:bg-red-200 text-red-600 px-4 rounded-xl font-bold transition-all disabled:opacity-50">
+                Delete
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
@@ -245,12 +274,26 @@ function RouteModal({ route, token, onClose, onSave }: { route: any; token: stri
     e.preventDefault();
     setLoading(true); setError("");
     try {
+      const isNew = !route.id;
       const res = await fetch("/api/admin/data?resource=routes", {
-        method: "PATCH",
+        method: isNew ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({ id: route.id, ...formData }),
+        body: JSON.stringify(isNew ? formData : { id: route.id, ...formData }),
       });
-      if (!res.ok) throw new Error("Failed to update");
+      if (!res.ok) throw new Error("Failed to save");
+      onSave();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Are you sure you want to delete this route?")) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/admin/data?resource=routes&id=${route.id}`, { method: "DELETE", headers: { "x-admin-token": token } });
       onSave();
     } catch (err: any) {
       setError(err.message);
@@ -305,9 +348,16 @@ function RouteModal({ route, token, onClose, onSave }: { route: any; token: stri
             <input type="checkbox" id="route-active" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="w-4 h-4" />
             <label htmlFor="route-active" className="text-sm font-semibold text-gray-700 cursor-pointer">Is Active</label>
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
-            {loading ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" disabled={loading} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+            {route.id && (
+              <button type="button" onClick={handleDelete} disabled={loading} className="bg-red-100 hover:bg-red-200 text-red-600 px-4 rounded-xl font-bold transition-all disabled:opacity-50">
+                Delete
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
@@ -690,39 +740,53 @@ export default function AdminDashboard() {
         )}
 
         {tab === "reports"  && <ReportsTab token={token} />}
-        {tab === "feedback" && <FeedbackTab />}
+        {tab === "feedback" && <FeedbackTab token={token} />}
 
         {tab === "buses" && (
-          <DataTab token={token} resource="buses" refreshKey={dataRefreshKey} onRowClick={row => setSelectedBus(row)} columns={[
-            { key: "id",        label: "ID" },
-            { key: "busNumber", label: "Bus Number" },
-            { key: "route",     label: "Route",     render: r => r.route?.routeNumber ?? "—" },
-            { key: "authority", label: "Authority", render: r => r.authority?.name ?? "—" },
-            { key: "type",      label: "Type" },
-            { key: "capacity",  label: "Capacity" },
-            { key: "simSegment",label: "Sim Seg." },
-            { key: "isActive",  label: "Active", render: r => r.isActive
-              ? <span className="text-green-600 font-bold text-xs">✓ Active</span>
-              : <span className="text-red-500 font-bold text-xs">✗ Inactive</span> },
-            { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
-          ]} />
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button onClick={() => setSelectedBus({ isActive: true, capacity: 55, type: "ORDINARY" })} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl transition-all text-sm shadow-sm">
+                + Add New Bus
+              </button>
+            </div>
+            <DataTab token={token} resource="buses" refreshKey={dataRefreshKey} onRowClick={row => setSelectedBus(row)} columns={[
+              { key: "id",        label: "ID" },
+              { key: "busNumber", label: "Bus Number" },
+              { key: "route",     label: "Route",     render: r => r.route?.routeNumber ?? "—" },
+              { key: "authority", label: "Authority", render: r => r.authority?.name ?? "—" },
+              { key: "type",      label: "Type" },
+              { key: "capacity",  label: "Capacity" },
+              { key: "simSegment",label: "Sim Seg." },
+              { key: "isActive",  label: "Active", render: r => r.isActive
+                ? <span className="text-green-600 font-bold text-xs">✓ Active</span>
+                : <span className="text-red-500 font-bold text-xs">✗ Inactive</span> },
+              { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
+            ]} />
+          </div>
         )}
 
         {tab === "routes" && (
-          <DataTab token={token} resource="routes" refreshKey={dataRefreshKey} onRowClick={row => setSelectedRoute(row)} columns={[
-            { key: "routeNumber", label: "Route No." },
-            { key: "name",        label: "Name" },
-            { key: "authority",   label: "Authority", render: r => r.authority?.name ?? "—" },
-            { key: "type",        label: "Type" },
-            { key: "totalKm",     label: "Distance",  render: r => `${r.totalKm} km` },
-            { key: "baseFare",    label: "Base Fare", render: r => `₹${r.baseFare}` },
-            { key: "_count",      label: "Buses",     render: r => r._count?.buses ?? 0 },
-            { key: "stops",       label: "Stops",     render: r => r._count?.stops ?? 0 },
-            { key: "isActive",    label: "Active",    render: r => r.isActive
-              ? <span className="text-green-600 font-bold text-xs">✓</span>
-              : <span className="text-red-500 font-bold text-xs">✗</span> },
-            { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
-          ]} />
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button onClick={() => setSelectedRoute({ isActive: true, type: "ORDINARY", baseFare: 0 })} className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-xl transition-all text-sm shadow-sm">
+                + Add New Route
+              </button>
+            </div>
+            <DataTab token={token} resource="routes" refreshKey={dataRefreshKey} onRowClick={row => setSelectedRoute(row)} columns={[
+              { key: "routeNumber", label: "Route No." },
+              { key: "name",        label: "Name" },
+              { key: "authority",   label: "Authority", render: r => r.authority?.name ?? "—" },
+              { key: "type",        label: "Type" },
+              { key: "totalKm",     label: "Distance",  render: r => `${r.totalKm} km` },
+              { key: "baseFare",    label: "Base Fare", render: r => `₹${r.baseFare}` },
+              { key: "_count",      label: "Buses",     render: r => r._count?.buses ?? 0 },
+              { key: "stops",       label: "Stops",     render: r => r._count?.stops ?? 0 },
+              { key: "isActive",    label: "Active",    render: r => r.isActive
+                ? <span className="text-green-600 font-bold text-xs">✓</span>
+                : <span className="text-red-500 font-bold text-xs">✗</span> },
+              { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
+            ]} />
+          </div>
         )}
 
         {tab === "users" && (

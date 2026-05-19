@@ -52,3 +52,24 @@ export async function GET() {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+import { verifyAdminToken } from "@/lib/auth";
+
+// DELETE /api/feedback — admin only
+export async function DELETE(req: Request) {
+  try {
+    const auth = req.headers.get("x-admin-token") ?? "";
+    if (!auth || !verifyAdminToken(auth)) {
+      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const id = Number(url.searchParams.get("id"));
+    if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+
+    await prisma.feedback.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

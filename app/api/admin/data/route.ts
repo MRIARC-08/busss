@@ -100,3 +100,66 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: error.message || "Failed to update" }, { status: 500 });
   }
 }
+
+export async function POST(req: Request) {
+  if (!authCheck(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  const url = new URL(req.url);
+  const resource = url.searchParams.get("resource");
+  try {
+    const body = await req.json();
+    if (resource === "buses") {
+      const { busNumber, routeId, authorityId, capacity, type, isActive } = body;
+      const created = await prisma.bus.create({
+        data: {
+          busNumber,
+          routeId: routeId ? Number(routeId) : 1,
+          authorityId: authorityId ? Number(authorityId) : 1,
+          capacity: Number(capacity),
+          type,
+          isActive: Boolean(isActive),
+        },
+      });
+      return NextResponse.json(created);
+    }
+    if (resource === "routes") {
+      const { routeNumber, name, authorityId, type, baseFare, totalMinutes, totalKm, isActive } = body;
+      const created = await prisma.route.create({
+        data: {
+          routeNumber, name, 
+          authorityId: authorityId ? Number(authorityId) : 1, 
+          type,
+          baseFare: Number(baseFare), 
+          totalMinutes: totalMinutes ? Number(totalMinutes) : 45, 
+          totalKm: totalKm ? Number(totalKm) : 15,
+          isActive: Boolean(isActive),
+        }
+      });
+      return NextResponse.json(created);
+    }
+    return NextResponse.json({ error: "Unknown resource" }, { status: 400 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  if (!authCheck(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  const url = new URL(req.url);
+  const resource = url.searchParams.get("resource");
+  const id = Number(url.searchParams.get("id"));
+  if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+
+  try {
+    if (resource === "buses") {
+      await prisma.bus.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+    if (resource === "routes") {
+      await prisma.route.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ error: "Unknown resource" }, { status: 400 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

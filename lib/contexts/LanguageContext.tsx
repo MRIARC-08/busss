@@ -98,7 +98,7 @@ const translations: Translations = {
     "contact.officeVal": "New Delhi, India",
     "contact.officeSub": "Govt. Transport Wing",
 
-    "hero.bookTicket": "Look for routes",
+    "hero.bookTicket": "Look for Buses",
     "hero.from": "From",
     "hero.to": "To",
     "hero.date": "DD/MM/YYYY *",

@@ -5,8 +5,8 @@ import { Shield, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("admin@123");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
@@ -81,6 +81,9 @@ export default function AdminLoginPage() {
               className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all mt-2 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Authenticating…</> : "Sign In to Admin"}
             </button>
+            <p className="text-xs text-blue-300 text-center font-medium opacity-80 mt-2">
+              (Demo credentials pre-filled)
+            </p>
           </form>
 
           <p className="text-center text-white/20 text-xs mt-6">Restricted access. Unauthorised entry is prohibited.</p>

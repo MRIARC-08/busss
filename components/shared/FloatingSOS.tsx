@@ -15,7 +15,7 @@ export function FloatingSOS() {
     timerRef.current = setTimeout(async () => {
       isLongPress.current = true;
       try {
-        await fetch("/api/sos", { method: "POST" });
+        await fetch("/api/sos", { method: "POST", keepalive: true });
       } catch (e) {
         // ignore errors so we don't block dialing
       }

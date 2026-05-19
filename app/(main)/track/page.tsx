@@ -230,11 +230,20 @@ function TrackPageContent() {
             {t("track.vehicle")} {displayBusNumber} • {t("track.towards")} <span className="font-bold text-gray-700">{routeName}</span>
           </p>
         </div>
-        <div className="text-left sm:text-right w-full sm:w-auto pt-3 sm:pt-0 border-t border-brand-100 sm:border-0 mt-1 sm:mt-0">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
-          <p className="text-xl font-black text-brand-600">{displaySpeedKmh} <span className="text-sm text-brand-400">km/h</span></p>
+          <div className="text-left sm:text-right w-full sm:w-auto pt-3 sm:pt-0 border-t border-brand-100 sm:border-0 mt-1 sm:mt-0 flex flex-col items-start sm:items-end gap-2">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
+              <p className="text-xl font-black text-brand-600">{displaySpeedKmh} <span className="text-sm text-brand-400">km/h</span></p>
+            </div>
+            <button
+              onClick={() => router.push(`/report?busNumber=${encodeURIComponent(displayBusNumber)}`)}
+              className="flex items-center gap-1.5 bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              Report Issue
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Map */}
       <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">

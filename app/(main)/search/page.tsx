@@ -61,9 +61,17 @@ function SearchResults() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-6 bg-gray-50 min-h-[calc(100vh-100px)]">
-        <Loader2 className="h-12 w-12 text-brand-500 animate-spin" />
-        <p className="text-gray-600 font-medium">{t("search.loading")}</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 px-4 animate-in fade-in duration-500">
+        <div className="relative">
+          <div className="absolute inset-0 bg-brand-500 rounded-full animate-ping opacity-25" />
+          <div className="bg-white border-4 border-brand-100 p-4 rounded-full relative shadow-xl">
+            <Bus className="w-8 h-8 text-brand-600 animate-bounce" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="font-black text-xl text-gray-800 tracking-tight">Finding best routes</h2>
+          <p className="text-gray-500 text-sm font-medium">{t("search.loading")}</p>
+        </div>
       </div>
     );
   }

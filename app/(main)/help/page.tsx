@@ -332,75 +332,77 @@ export default function HelpPage() {
         </div>
 
         {/* Documentation Content Sections */}
-        <div className="space-y-8 mb-16">
-          {filteredSections.length > 0 ? (
-            filteredSections.map(sec => {
-              const IconComp = sec.icon;
-              return (
-                <div 
-                  key={sec.id} 
-                  id={`doc-${sec.id}`}
-                  className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-200 relative overflow-hidden group"
-                >
-                  <div className="absolute top-0 left-0 w-2 h-full bg-brand-500 transform scale-y-0 group-hover:scale-y-100 transition-transform origin-top duration-300" />
-                  
-                  <div className="flex items-start gap-4 mb-6">
-                    <div className="p-3 bg-brand-50 rounded-xl text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors duration-300">
-                      <IconComp className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-black tracking-widest text-brand-500 block mb-1">
-                        {t.categories[sec.category as keyof typeof t.categories]}
-                      </span>
-                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight group-hover:text-brand-700 transition-colors">
-                        {sec.title}
-                      </h2>
-                    </div>
-                  </div>
-
-                  <p className="text-gray-500 font-medium text-sm sm:text-base border-b border-gray-100 pb-4 mb-6">
-                    {sec.desc}
-                  </p>
-
-                  {/* Render content structured layout cleanly without raw markdown parsing issues */}
-                  <div className="space-y-6">
-                    {sec.content.map((item, index) => (
-                      <div key={index} className="space-y-1.5">
-                        <h3 className="font-extrabold text-gray-800 text-base sm:text-lg flex items-center gap-2">
-                          <span className="w-1.5 h-3 bg-brand-500 rounded-full" />
-                          {item.subtitle}
-                        </h3>
-                        <p className="text-gray-500 text-sm sm:text-base leading-relaxed pl-3.5">
-                          {item.body}
-                        </p>
+        {activeCategory !== "faqs" && (
+          <div className="space-y-8 mb-16">
+            {filteredSections.length > 0 ? (
+              filteredSections.map(sec => {
+                const IconComp = sec.icon;
+                return (
+                  <div 
+                    key={sec.id} 
+                    id={`doc-${sec.id}`}
+                    className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-200 relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 left-0 w-2 h-full bg-brand-500 transform scale-y-0 group-hover:scale-y-100 transition-transform origin-top duration-300" />
+                    
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="p-3 bg-brand-50 rounded-xl text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors duration-300">
+                        <IconComp className="w-6 h-6" />
                       </div>
-                    ))}
+                      <div>
+                        <span className="text-[10px] uppercase font-black tracking-widest text-brand-500 block mb-1">
+                          {t.categories[sec.category as keyof typeof t.categories]}
+                        </span>
+                        <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight group-hover:text-brand-700 transition-colors">
+                          {sec.title}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-500 font-medium text-sm sm:text-base border-b border-gray-100 pb-4 mb-6">
+                      {sec.desc}
+                    </p>
+
+                    {/* Render content structured layout cleanly without raw markdown parsing issues */}
+                    <div className="space-y-6">
+                      {sec.content.map((item, index) => (
+                        <div key={index} className="space-y-1.5">
+                          <h3 className="font-extrabold text-gray-800 text-base sm:text-lg flex items-center gap-2">
+                            <span className="w-1.5 h-3 bg-brand-500 rounded-full" />
+                            {item.subtitle}
+                          </h3>
+                          <p className="text-gray-500 text-sm sm:text-base leading-relaxed pl-3.5">
+                            {item.body}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl p-8">
-              <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-800 font-bold text-lg">
-                {language === "hi" ? "कोई गाइड नहीं मिली" : "No guides match your search"}
-              </p>
-              <p className="text-gray-400 text-sm mt-1">
-                {language === "hi" ? "कृपया कुछ अलग खोजने का प्रयास करें।" : "Try refining your search keywords or selection."}
-              </p>
-              <button 
-                onClick={() => { setSearch(""); setActiveCategory("all"); }}
-                className="mt-4 px-4 py-2 bg-brand-50 text-brand-600 font-bold rounded-xl text-xs hover:bg-brand-100 transition-colors"
-              >
-                {language === "hi" ? "फ़िल्टर साफ़ करें" : "Reset Filters"}
-              </button>
-            </div>
-          )}
-        </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-16 bg-white border border-gray-200 rounded-2xl p-8">
+                <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-800 font-bold text-lg">
+                  {language === "hi" ? "कोई गाइड नहीं मिली" : "No guides match your search"}
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  {language === "hi" ? "कृपया कुछ अलग खोजने का प्रयास करें।" : "Try refining your search keywords or selection."}
+                </p>
+                <button 
+                  onClick={() => { setSearch(""); setActiveCategory("all"); }}
+                  className="mt-4 px-4 py-2 bg-brand-50 text-brand-600 font-bold rounded-xl text-xs hover:bg-brand-100 transition-colors"
+                >
+                  {language === "hi" ? "फ़िल्टर साफ़ करें" : "Reset Filters"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* FAQs Accordion */}
-        {activeCategory === "all" || activeCategory === "faqs" ? (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+        {(activeCategory === "all" || activeCategory === "faqs") && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm mb-16">
             <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6 flex items-center gap-2">
               <HelpCircle className="w-6 h-6 text-brand-500" />
               {language === "hi" ? "अक्सर पूछे जाने वाले प्रश्न" : "Frequently Asked Questions"}
@@ -419,7 +421,7 @@ export default function HelpPage() {
               ))}
             </div>
           </div>
-        ) : null}
+        )}
 
       </div>
     </div>

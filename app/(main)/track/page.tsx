@@ -246,7 +246,7 @@ function TrackPageContent() {
         </div>
 
       {/* Map */}
-      <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+      <div id="tour-live-map" className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
         <TrackingMap
           position={displayPosition}
           busNumber={displayBusNumber}
@@ -291,7 +291,7 @@ function TrackPageContent() {
       </div>
 
       {/* Route timeline */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div id="tour-timeline" className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="font-black text-gray-800 text-sm uppercase tracking-wider">Route Timeline</h2>
         </div>

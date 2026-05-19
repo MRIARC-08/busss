@@ -93,13 +93,14 @@ function SearchResults() {
     );
   }
 
-  const BusCard = ({ bus, departed }: { bus: any, departed?: boolean }) => {
+  const BusCard = ({ bus, departed, isFirst }: { bus: any, departed?: boolean, isFirst?: boolean }) => {
     const routeNum = bus.routeId ? String(bus.routeId).replace(/(up|down)/i, '') : "N/A";
     const direction = String(bus.routeId).match(/up/i) ? 'UP' : String(bus.routeId).match(/down/i) ? 'DOWN' : 'REGULAR';
     const acStatus = bus.isAC ? 'AC' : 'Non-AC';
     
     return (
       <Link
+        id={isFirst ? "tour-track-btn" : undefined}
         href={(() => {
           const trackParams = new URLSearchParams({
             busId: bus.id,
@@ -152,7 +153,7 @@ function SearchResults() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-8 flex justify-between items-center">
+      <div id="tour-search-header" className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-8 flex justify-between items-center">
          <div>
             <div className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 border-b pb-1 inline-block">{t("search.startEnd")}</div>
             <h1 className="text-2xl font-black text-gray-800 flex items-center gap-3">
@@ -162,7 +163,7 @@ function SearchResults() {
             <p className="text-gray-500 font-medium mt-3 bg-brand-50 inline-block px-3 py-1 rounded-lg text-brand-700 border border-brand-100">{t("search.approachingBuses")}: <span className="font-black">{data.upcoming.length}</span></p>
          </div>
       </div>
-
+ 
       <div className="space-y-10">
         <section>
            <h2 className="text-lg font-black text-brand-800 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -170,7 +171,7 @@ function SearchResults() {
            </h2>
            {data.upcoming.length > 0 ? (
              <div className="grid gap-4">
-               {data.upcoming.map((bus: any) => <BusCard key={bus.id} bus={bus} />)}
+               {data.upcoming.map((bus: any, i: number) => <BusCard key={bus.id} bus={bus} isFirst={i === 0} />)}
              </div>
            ) : (
              <p className="text-gray-500 italic p-6 bg-gray-50 rounded-xl border border-gray-100">{t("search.noBuses")}</p>

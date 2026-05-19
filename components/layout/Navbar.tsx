@@ -110,8 +110,8 @@ export default function Navbar() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const navLinks = [
-    { href: "/", label: t("nav.home"), icon: Bus },
-    { href: "/report", label: t("nav.report"), icon: AlertCircle },
+    { href: "/", label: t("nav.home"), icon: Bus, id: "tour-home" },
+    { href: "/report", label: t("nav.report"), icon: AlertCircle, id: "tour-report" },
   ];
 
   return (
@@ -144,6 +144,7 @@ export default function Navbar() {
               })}
             </div>
             <button
+              id="tour-lang"
               onClick={() => setLanguage(language === "en" ? "hi" : "en")}
               aria-label={`Switch language to ${language === "en" ? "Hindi" : "English"}`}
               className="font-bold hover:text-white focus:outline-none focus:ring-1 focus:ring-white rounded px-1"
@@ -190,11 +191,12 @@ export default function Navbar() {
 
           {/* Nav links */}
           <div className="flex items-center gap-0.5" role="list">
-            {navLinks.map(({ href, label, icon: Icon }) => {
+            {navLinks.map(({ href, label, icon: Icon, id }) => {
               const isActive = pathname === href;
               return (
                 <Link
                   key={href}
+                  id={id}
                   href={href}
                   role="listitem"
                   aria-current={isActive ? "page" : undefined}

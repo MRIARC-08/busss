@@ -63,8 +63,14 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 // ── Feedback form ─────────────────────────────────────────────────────────────
+import { useAuth } from "@/lib/contexts/AuthContext";
+import AuthModal from "@/components/auth/AuthModal";
+
 function FeedbackForm() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
+
   const [rating, setRating]     = useState(0);
   const [hover,  setHover]      = useState(0);
   const [name,   setName]       = useState("");
@@ -72,8 +78,20 @@ function FeedbackForm() {
   const [done,   setDone]       = useState(false);
   const [loading, setLoading]   = useState(false);
 
+  function handleInteraction(e: React.MouseEvent | React.FocusEvent) {
+    if (!user) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowAuth(true);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
     if (!rating || !text.trim()) return;
     setLoading(true);
     try {
@@ -100,43 +118,51 @@ function FeedbackForm() {
   );
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div>
-        <p className="text-blue-200 text-sm font-semibold mb-2">{t("testimonials.rating")}</p>
-        <div className="flex gap-1">
-          {[1,2,3,4,5].map(i => (
-            <button key={i} type="button"
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(0)}
-              onClick={() => setRating(i)}>
-              <Star className={`w-8 h-8 transition-colors ${i <= (hover || rating) ? "fill-amber-400 text-amber-400" : "text-white/30"}`} />
-            </button>
-          ))}
-        </div>
-      </div>
-      <input
-        type="text"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        placeholder={t("testimonials.nameOpt")}
-        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60"
-      />
-      <textarea
-        rows={3}
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={t("testimonials.shareExp")}
-        required
-        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 resize-none"
-      />
-      <button
-        type="submit"
-        disabled={!rating || !text.trim() || loading}
-        className="w-full bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-gray-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+    <>
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      
+      <form 
+        onSubmit={submit} 
+        className="space-y-4"
+        onClickCapture={handleInteraction}
+        onFocusCapture={handleInteraction}
       >
-        {loading ? t("testimonials.sending") : <><Send className="w-4 h-4" /> {t("testimonials.btn")}</>}
-      </button>
-    </form>
+        <div>
+          <p className="text-blue-200 text-sm font-semibold mb-2">{t("testimonials.rating")}</p>
+          <div className="flex gap-1">
+            {[1,2,3,4,5].map(i => (
+              <button key={i} type="button"
+                onMouseEnter={() => user && setHover(i)}
+                onMouseLeave={() => user && setHover(0)}
+                onClick={() => user && setRating(i)}>
+                <Star className={`w-8 h-8 transition-colors ${i <= (hover || rating) ? "fill-amber-400 text-amber-400" : "text-white/30"}`} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder={t("testimonials.nameOpt")}
+          className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60"
+        />
+        <textarea
+          rows={3}
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={t("testimonials.shareExp")}
+          required
+          className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-white/60 resize-none"
+        />
+        <button
+          type="submit"
+          className="w-full bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-gray-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
+          {loading ? t("testimonials.sending") : <><Send className="w-4 h-4" /> {t("testimonials.btn")}</>}
+        </button>
+      </form>
+    </>
   );
 }
 

@@ -38,6 +38,7 @@ export function FloatingSOS() {
   return (
     <>
       <button
+        id="tour-sos"
         onMouseDown={startPress}
         onMouseUp={endPress}
         onMouseLeave={cancelPress}

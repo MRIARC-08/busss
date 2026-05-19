@@ -94,7 +94,7 @@ export default function HeroSearchBox() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-2xl flex flex-col w-full max-w-lg overflow-hidden border border-gray-200">
+    <div id="tour-search" className="bg-white rounded-lg shadow-2xl flex flex-col w-full max-w-lg overflow-hidden border border-gray-200">
       
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 

@@ -222,7 +222,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white text-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+      <div id="tour-auth-modal" className="bg-white text-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
         {/* Header */}
         <div className="bg-brand-700 text-white rounded-t-2xl px-6 py-5 flex items-center justify-between">
           <div>

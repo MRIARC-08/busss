@@ -15,8 +15,8 @@ export default function FeatureCards() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-16">
-      <div className="text-center mb-12">
+    <div className="max-w-6xl mx-auto px-4 py-10 lg:py-16">
+      <div className="text-center mb-8 lg:mb-12">
         <div className="inline-flex items-center gap-2 bg-blue-100 border border-blue-200 rounded-full px-4 py-1.5 text-blue-700 text-xs font-bold uppercase tracking-widest mb-4">
           Our Core Values
         </div>
@@ -24,7 +24,7 @@ export default function FeatureCards() {
         <p className="text-gray-500 text-sm max-w-xl mx-auto">Driving the future of public transportation through our five core pillars.</p>
       </div>
       
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 lg:gap-6">
         {features.map(({ letter, title, desc, icon: Icon, color, bg }) => (
           <div key={letter} className="bg-white rounded-2xl p-5 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-1">
             <div className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 ${bg}`}>

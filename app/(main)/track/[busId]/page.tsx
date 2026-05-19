@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useBusTracking } from "@/hooks/useBusTracking";
 import {
   Loader2, AlertCircle, MapPin, Users, Zap, Clock,
-  Navigation,  ArrowLeft, RefreshCw
+  Navigation,  ArrowLeft, RefreshCw, Bus
 } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 
@@ -76,9 +76,17 @@ export default function TrackPageContent() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
-        <p className="text-gray-500 text-sm">Connecting to live bus feed…</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 px-4 animate-in fade-in duration-500">
+        <div className="relative">
+          <div className="absolute inset-0 bg-brand-500 rounded-full animate-ping opacity-25" />
+          <div className="bg-white border-4 border-brand-100 p-4 rounded-full relative shadow-xl">
+            <Bus className="w-8 h-8 text-brand-600 animate-bounce" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="font-black text-xl text-gray-800 tracking-tight">Locating your bus</h2>
+          <p className="text-gray-500 text-sm font-medium">Connecting to live GPS network...</p>
+        </div>
       </div>
     );
   }
@@ -151,27 +159,33 @@ export default function TrackPageContent() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       {/* Back + header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-black text-gray-800 truncate">
-            {t("track.vehicle")} {busNumber} — {t("track.route")} {routeNumber}
-          </h1>
-          <p className="text-xs text-gray-500 truncate">{routeName} · {authority}</p>
+      <div className="bg-white rounded-2xl border border-brand-200 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-white to-brand-50">
+        <div className="flex items-center gap-3 w-full">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-black text-gray-800 truncate">
+              {t("track.vehicle")} {busNumber} — {t("track.route")} {routeNumber}
+            </h1>
+            <p className="text-xs text-gray-500 truncate">{routeName} · {authority}</p>
+          </div>
+          <button
+            onClick={refresh}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Refresh tracking"
+          >
+            <RefreshCw className="w-4 h-4 text-gray-500" />
+          </button>
         </div>
-        <button
-          onClick={refresh}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          aria-label="Refresh tracking"
-        >
-          <RefreshCw className="w-4 h-4 text-gray-500" />
-        </button>
+        <div className="text-left sm:text-right w-full sm:w-auto pt-3 sm:pt-0 border-t border-brand-100 sm:border-0 mt-1 sm:mt-0">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
+          <p className="text-xl font-black text-brand-600">{speedKmh} <span className="text-sm text-brand-400">km/h</span></p>
+        </div>
       </div>
 
       {/* Map */}

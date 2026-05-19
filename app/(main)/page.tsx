@@ -257,7 +257,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Passenger Experience & Contact Section ─────────────────────────── */}
-      <section id="contact" className="bg-gradient-to-br from-brand-700 via-brand-800 to-blue-900 py-16 px-4">
+      <section id="contact" className="bg-gradient-to-br from-brand-700 via-brand-800 to-blue-900 py-10 lg:py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-xs font-bold uppercase tracking-widest mb-4">

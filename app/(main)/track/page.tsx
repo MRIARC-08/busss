@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useBusTracking } from "@/hooks/useBusTracking";
 import {
   Loader2, AlertCircle, MapPin, Users, Zap, Clock,
-  Navigation, ArrowLeft, RefreshCw,
+  Navigation, ArrowLeft, RefreshCw, Bus
 } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 
@@ -108,11 +108,19 @@ function TrackPageContent() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (resolving || (dbBusId && isLoading)) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
-        <p className="text-gray-500 text-sm">
-          {resolving ? t("track.resolving") : t("track.connecting")}
-        </p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 px-4 animate-in fade-in duration-500">
+        <div className="relative">
+          <div className="absolute inset-0 bg-brand-500 rounded-full animate-ping opacity-25" />
+          <div className="bg-white border-4 border-brand-100 p-4 rounded-full relative shadow-xl">
+            <Bus className="w-8 h-8 text-brand-600 animate-bounce" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="font-black text-xl text-gray-800 tracking-tight">
+            {resolving ? t("track.resolving") : "Locating your bus"}
+          </h2>
+          <p className="text-gray-500 text-sm font-medium">Connecting to live GPS network...</p>
+        </div>
       </div>
     );
   }
@@ -209,7 +217,7 @@ function TrackPageContent() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-brand-200 shadow-sm p-4 flex justify-between items-center bg-gradient-to-r from-white to-brand-50">
+      <div className="bg-white rounded-2xl border border-brand-200 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-white to-brand-50">
         <div>
           <div className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest mb-2 border border-green-200">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -222,7 +230,7 @@ function TrackPageContent() {
             {t("track.vehicle")} {displayBusNumber} • {t("track.towards")} <span className="font-bold text-gray-700">{routeName}</span>
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-left sm:text-right w-full sm:w-auto pt-3 sm:pt-0 border-t border-brand-100 sm:border-0 mt-1 sm:mt-0">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
           <p className="text-xl font-black text-brand-600">{displaySpeedKmh} <span className="text-sm text-brand-400">km/h</span></p>
         </div>
@@ -331,8 +339,10 @@ function TrackPageContent() {
 export default function TrackPage() {
   return (
     <Suspense fallback={
-      <div className="flex justify-center py-32">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="bg-white border-4 border-brand-100 p-4 rounded-full shadow-xl">
+          <Bus className="w-8 h-8 text-brand-600 animate-pulse" />
+        </div>
       </div>
     }>
       <TrackPageContent />

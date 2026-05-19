@@ -28,13 +28,13 @@ export default function PopularRoutes() {
             <Link
               key={i}
               href={`/search?from=${encodeURIComponent(r.from)}&to=${encodeURIComponent(r.to)}`}
-              className="flex items-center justify-between bg-white rounded-xl
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 bg-white rounded-xl
                          border border-gray-200 px-5 py-4 hover:border-brand-300
                          hover:shadow-sm transition-all group"
             >
-              <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center flex-wrap gap-2 sm:gap-3 text-sm">
                 <span className="font-medium text-gray-800">{r.from}</span>
-                <ArrowRight className="h-4 w-4 text-gray-300" />
+                <ArrowRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
                 <span className="font-medium text-gray-800">{r.to}</span>
               </div>
               <div className="flex items-center gap-3">

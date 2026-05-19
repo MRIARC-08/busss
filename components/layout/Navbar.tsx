@@ -111,7 +111,6 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus },
-    { href: "/live", label: t("nav.liveMap"), icon: MapPin },
     { href: "/report", label: t("nav.report"), icon: AlertCircle },
   ];
 

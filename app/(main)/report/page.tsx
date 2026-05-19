@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 import { SOSModal } from "@/components/shared/SOSModal";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 const ISSUE_TYPES = [
   { key: "LATE_BUS",       label: "Late Bus",       icon: Clock,        color: "text-orange-500 bg-orange-50 border-orange-200" },
@@ -24,6 +25,7 @@ const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "EMERGENCY"];
 function ReportContent() {
   const params    = useSearchParams();
   const preBusNum = params.get("busNumber") || "";
+  const { user }  = useAuth();
 
   const [issueType,   setIssueType]   = useState("");
   const [severity,    setSeverity]    = useState("MEDIUM");
@@ -66,7 +68,22 @@ function ReportContent() {
         body: JSON.stringify({ type: issueType, severity, description, busNumber }),
       });
       const d = await r.json();
-      if (d.success) setSubmitted(true);
+      if (d.success) {
+        if (user) {
+          const reportKey = `user-logs-reports-${user.mobile}`;
+          const current = JSON.parse(localStorage.getItem(reportKey) || "[]");
+          const newReport = {
+            type: issueType,
+            severity,
+            description,
+            busNumber,
+            timestamp: new Date().toISOString(),
+          };
+          const updated = [newReport, ...current].slice(0, 10);
+          localStorage.setItem(reportKey, JSON.stringify(updated));
+        }
+        setSubmitted(true);
+      }
     } finally {
       setLoading(false);
     }

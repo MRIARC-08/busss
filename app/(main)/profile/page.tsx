@@ -1,11 +1,11 @@
 "use client";
 
 import { useAuth } from "@/lib/contexts/AuthContext";
-import { useState, useId } from "react";
+import { useState, useId, useEffect } from "react";
 import {
   User, Phone, Calendar, Shield, Lock, Eye, EyeOff,
   Save, LogOut, AlertCircle, CheckCircle2, Loader2,
-  Bus, MapPin, ChevronRight, Edit3,
+  Bus, MapPin, ChevronRight, Edit3, History, ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -95,6 +95,28 @@ export default function ProfilePage() {
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
+
+  // Logs state
+  const [searches, setSearches] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [sosLogs, setSosLogs] = useState<any[]>([]);
+  const [activeLogTab, setActiveLogTab] = useState<"searches" | "reports" | "sos">("searches");
+
+  useEffect(() => {
+    if (user) {
+      const searchesKey = `user-logs-searches-${user.mobile}`;
+      const reportsKey = `user-logs-reports-${user.mobile}`;
+      const sosKey = `user-logs-sos-${user.mobile}`;
+
+      try {
+        setSearches(JSON.parse(localStorage.getItem(searchesKey) || "[]"));
+        setReports(JSON.parse(localStorage.getItem(reportsKey) || "[]"));
+        setSosLogs(JSON.parse(localStorage.getItem(sosKey) || "[]"));
+      } catch (e) {
+        console.error("Failed to load user logs", e);
+      }
+    }
+  }, [user]);
 
   // Start edit
   function startEdit() {
@@ -333,6 +355,157 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+      </SectionCard>
+
+      {/* Activity Logs */}
+      <SectionCard title="Activity & Security Logs" icon={History}>
+        <div className="flex border-b border-gray-100 mb-6 gap-2">
+          {[
+            { id: "searches", label: "Searches", count: searches.length, color: "text-brand-600 border-brand-500 bg-brand-50/50" },
+            { id: "reports", label: "Reports Filed", count: reports.length, color: "text-orange-600 border-orange-500 bg-orange-50/50" },
+            { id: "sos", label: "Emergency SOS", count: sosLogs.length, color: "text-red-600 border-red-500 bg-red-50/50" },
+          ].map(tab => {
+            const isActive = activeLogTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveLogTab(tab.id as any)}
+                className={`flex-1 pb-3 text-sm font-bold border-b-2 text-center transition-all px-2 flex items-center justify-center gap-1.5
+                  ${isActive 
+                    ? `${tab.color.split(" ")[0]} ${tab.color.split(" ")[1]}` 
+                    : "text-gray-400 border-transparent hover:text-gray-600"}`}
+              >
+                {tab.label}
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${isActive ? `${tab.color.split(" ")[2]} ${tab.color.split(" ")[0]}` : "bg-gray-100 text-gray-400"}`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Contents */}
+        <div className="space-y-4 min-h-[160px]">
+          {activeLogTab === "searches" && (
+            <div className="space-y-3">
+              {searches.length > 0 ? (
+                searches.map((item, idx) => (
+                  <a
+                    key={idx}
+                    href={`/search?from=${encodeURIComponent(item.from)}&to=${encodeURIComponent(item.to)}`}
+                    className="flex items-center justify-between p-3.5 bg-gray-50 hover:bg-brand-50/30 border border-gray-100 hover:border-brand-200 rounded-xl transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-lg text-brand-600 shadow-sm border border-gray-100">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-800 flex items-center gap-1.5 flex-wrap">
+                          <span>{item.from}</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{item.to}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-medium block mt-0.5">
+                          {new Date(item.timestamp).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  </a>
+                ))
+              ) : (
+                <div className="text-center py-10 text-gray-400">
+                  <p className="text-sm font-bold">No recent searches logged</p>
+                  <p className="text-xs mt-1">Bus searches will appear here to help you quickly reroute.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeLogTab === "reports" && (
+            <div className="space-y-3">
+              {reports.length > 0 ? (
+                reports.map((item, idx) => {
+                  const getSeverityColor = (sev: string) => {
+                    if (sev === "EMERGENCY") return "bg-red-50 text-red-600 border-red-100";
+                    if (sev === "HIGH") return "bg-orange-50 text-orange-600 border-orange-100";
+                    if (sev === "MEDIUM") return "bg-yellow-50 text-yellow-600 border-yellow-100";
+                    return "bg-green-50 text-green-600 border-green-100";
+                  };
+                  return (
+                    <div
+                      key={idx}
+                      className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2 relative overflow-hidden text-left"
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase text-gray-700 bg-white border border-gray-200 px-2 py-0.5 rounded-md">
+                            {item.type.replace("_", " ")}
+                          </span>
+                          <span className={`text-[10px] font-bold border px-1.5 py-0.5 rounded-md ${getSeverityColor(item.severity)}`}>
+                            {item.severity}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          {new Date(item.timestamp).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                        {item.description}
+                      </p>
+                      {item.busNumber && (
+                        <div className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                          <Bus className="w-3.5 h-3.5" /> Bus: {item.busNumber}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-gray-400">
+                  <p className="text-sm font-bold">No issues reported yet</p>
+                  <p className="text-xs mt-1">If you experience delays or overcrowding, log a report to help authorities.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeLogTab === "sos" && (
+            <div className="space-y-3">
+              {sosLogs.length > 0 ? (
+                sosLogs.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3.5 bg-red-50/20 border border-red-100/50 rounded-xl relative overflow-hidden text-left"
+                  >
+                    <div className="absolute top-0 left-0 w-1 h-full bg-red-500" />
+                    <div className="flex items-center gap-3 pl-1">
+                      <div className="p-2 bg-red-50 rounded-lg text-red-600 shadow-sm border border-red-100 animate-pulse">
+                        <AlertCircle className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">
+                          Dialed: <span className="text-red-600 font-black">{item.label}</span> ({item.number})
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-medium block mt-0.5">
+                          {new Date(item.timestamp).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-50 border border-red-100 px-2 py-0.5 rounded-md">
+                      HELP DIALED
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-gray-400">
+                  <p className="text-sm font-bold text-gray-500">No emergency SOS helps logged</p>
+                  <p className="text-xs mt-1">Stay safe! If you ever dial 100 or tap SOS, the alerts trigger instantly.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </SectionCard>
 
       {/* Quick actions */}

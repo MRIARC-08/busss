@@ -3,11 +3,13 @@
 import { useState, useRef } from "react";
 import { Phone } from "lucide-react";
 import { SOSModal } from "./SOSModal";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 export function FloatingSOS() {
   const [isOpen, setIsOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
+  const { user } = useAuth();
 
   const startPress = () => {
     isLongPress.current = false;
@@ -18,6 +20,13 @@ export function FloatingSOS() {
         await fetch("/api/sos", { method: "POST", keepalive: true });
       } catch (e) {
         // ignore errors so we don't block dialing
+      }
+      if (user) {
+        const key = `user-logs-sos-${user.mobile}`;
+        const current = JSON.parse(localStorage.getItem(key) || "[]");
+        const entry = { label: "Police Hotline (SOS Long-Press)", number: "100", timestamp: new Date().toISOString() };
+        const updated = [entry, ...current].slice(0, 10);
+        localStorage.setItem(key, JSON.stringify(updated));
       }
       window.location.href = "tel:100";
     }, 600); // 600ms long press to dial

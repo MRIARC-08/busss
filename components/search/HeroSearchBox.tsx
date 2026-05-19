@@ -88,6 +88,17 @@ export default function HeroSearchBox() {
       return;
     }
 
+    // Save to user-specific search logs in localStorage
+    const searchKey = `user-logs-searches-${user.mobile}`;
+    const current = JSON.parse(localStorage.getItem(searchKey) || "[]");
+    const newEntry = {
+      from: fromClean,
+      to: toClean,
+      timestamp: new Date().toISOString(),
+    };
+    const updated = [newEntry, ...current.filter((s: any) => !(s.from === fromClean && s.to === toClean))].slice(0, 10);
+    localStorage.setItem(searchKey, JSON.stringify(updated));
+
     router.push(
       `/search?from=${encodeURIComponent(fromClean)}&to=${encodeURIComponent(toClean)}`
     );

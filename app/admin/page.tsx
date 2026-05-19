@@ -5,8 +5,8 @@ import { Shield, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin@123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
@@ -43,12 +43,6 @@ export default function AdminLoginPage() {
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Admin Portal</h1>
             <p className="text-blue-300 text-sm mt-1">Where Is My Bus — Control Panel</p>
-          </div>
-
-          {/* Demo hint */}
-          <div className="flex items-start gap-2 bg-blue-500/10 border border-blue-400/20 text-blue-200 rounded-xl px-4 py-3 mb-5 text-xs">
-            <span className="text-blue-400 font-black mt-0.5">DEMO</span>
-            <span>Credentials are pre-filled: <span className="font-mono font-bold text-white">admin</span> / <span className="font-mono font-bold text-white">admin@123</span></span>
           </div>
 
           {error && (

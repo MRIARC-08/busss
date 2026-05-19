@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifyAdminToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  // Basic token check
+function authCheck(req: Request) {
   const auth = req.headers.get("x-admin-token") ?? "";
-  if (!auth.startsWith("ey") && !auth.includes(".")) {
+  return Boolean(auth && verifyAdminToken(auth));
+}
+
+export async function GET(req: Request) {
+  if (!authCheck(req)) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
@@ -35,10 +39,15 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const auth = req.headers.get("x-admin-token") ?? "";
-  if (!auth.includes(".")) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  if (!authCheck(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id, status } = await req.json();
+  if (!Number.isInteger(Number(id))) {
+    return NextResponse.json({ error: "Invalid report id" }, { status: 422 });
+  }
+  if (!["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 422 });
+  }
   const updated = await prisma.report.update({ where: { id }, data: { status } });
   return NextResponse.json(updated);
 }

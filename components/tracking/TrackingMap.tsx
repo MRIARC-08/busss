@@ -86,6 +86,7 @@ interface TrackingMapProps {
   allStops:    StopData[];
   fromStop?:   string;
   toStop?:     string;
+  snapToRoute?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export default function TrackingMap({
   busNumber,
   routeNumber,
   allStops,
+  snapToRoute = true,
 }: TrackingMapProps) {
   const containerRef   = useRef<HTMLDivElement>(null);
   const wrapperRef     = useRef<HTMLDivElement>(null);
@@ -160,11 +162,26 @@ export default function TrackingMap({
   useEffect(() => {
     if (!mapRef.current || !allStops || allStops.length < 1) return;
     const L        = require("leaflet");
-    const cacheKey = `${routeNumber}:${allStops.length}`;
+    const cacheKey = [
+      routeNumber,
+      ...allStops.map(stop => `${stop.latitude.toFixed(5)},${stop.longitude.toFixed(5)}`),
+    ].join(":");
 
     // Rebuild stop markers
     stopMarkersRef.current.forEach(m => { try { m.remove(); } catch {} });
     stopMarkersRef.current = [];
+    if (polylineRef.current) { polylineRef.current.remove(); polylineRef.current = null; }
+
+    if (!snapToRoute) {
+      roadPathRef.current = [];
+      snappedPosRef.current = [position.lat, position.lon];
+      if (markerRef.current) markerRef.current.setLatLng([position.lat, position.lon]);
+      if (!routeDrawnRef.current) {
+        mapRef.current.setView([position.lat, position.lon], 14);
+        routeDrawnRef.current = true;
+      }
+      return;
+    }
 
     allStops.forEach(stop => {
       if (!stop.latitude || !stop.longitude) return;
@@ -204,21 +221,20 @@ export default function TrackingMap({
       roadPathRef.current = path;
 
       // Snap bus to road immediately
-      const snapped = path.length > 1
+      const snapped = snapToRoute && path.length > 1
         ? snapToPolyline(position.lat, position.lon, path)
         : [position.lat, position.lon] as [number, number];
       snappedPosRef.current = snapped;
       if (markerRef.current) markerRef.current.setLatLng(snapped);
 
       // Redraw polyline
-      if (polylineRef.current) { polylineRef.current.remove(); polylineRef.current = null; }
       if (path.length > 1) {
         polylineRef.current = L.polyline(path, {
           color: "#1d4ed8", weight: 5, opacity: 0.85, lineJoin: "round",
         }).addTo(mapRef.current);
 
         // Only fit bounds on first draw — never auto-zoom after that
-        if (!routeDrawnRef.current) {
+        if (snapToRoute && !routeDrawnRef.current) {
           try {
             const b = polylineRef.current.getBounds();
             if (b.isValid()) mapRef.current.fitBounds(b, { padding: [48, 48] });
@@ -226,23 +242,24 @@ export default function TrackingMap({
           } catch {}
         }
       }
+
     }
 
     drawRoute();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeNumber, allStops]);
+  }, [routeNumber, allStops, snapToRoute]);
 
   // ── Snap bus marker on every position poll (NO auto-pan) ─────────────────
   useEffect(() => {
     if (!markerRef.current) return;
     const road    = roadPathRef.current;
-    const snapped = road.length > 1
+    const snapped = snapToRoute && road.length > 1
       ? snapToPolyline(position.lat, position.lon, road)
       : [position.lat, position.lon] as [number, number];
     snappedPosRef.current = snapped;
     markerRef.current.setLatLng(snapped);
     // ✅ No auto-pan — user controls the viewport
-  }, [position.lat, position.lon]);
+  }, [position.lat, position.lon, snapToRoute]);
 
   // ── Locate bus button ─────────────────────────────────────────────────────
   const locateBus = useCallback(() => {

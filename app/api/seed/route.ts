@@ -9,7 +9,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret");
 
-  const expected = process.env.SEED_SECRET || "wimb-seed-2026";
+  const expected = process.env.SEED_SECRET;
+  if (!expected) {
+    return NextResponse.json({ error: "Seed endpoint is not configured" }, { status: 500 });
+  }
   if (secret !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

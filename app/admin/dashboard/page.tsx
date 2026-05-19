@@ -149,6 +149,171 @@ function UserModal({ user, onClose }: { user: any; onClose: () => void }) {
   );
 }
 
+// ── Bus Edit Modal ─────────────────────────────────────────────────────────────
+function BusModal({ bus, token, onClose, onSave }: { bus: any; token: string; onClose: () => void; onSave: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    busNumber: bus?.busNumber || "",
+    capacity: bus?.capacity || 55,
+    type: bus?.type || "ORDINARY",
+    isActive: bus?.isActive ?? true,
+  });
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("/api/admin/data?resource=buses", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ id: bus.id, ...formData }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      onSave();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!bus) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <Bus className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-black text-gray-800 text-lg">Edit Bus</h2>
+              <p className="text-xs text-gray-400">ID #{bus.id}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        {error && <div className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bus Number</label>
+            <input type="text" value={formData.busNumber} onChange={e => setFormData({...formData, busNumber: e.target.value})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Capacity</label>
+              <input type="number" value={formData.capacity} onChange={e => setFormData({...formData, capacity: parseInt(e.target.value)})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="ORDINARY">ORDINARY</option>
+                <option value="AC">AC</option>
+                <option value="ELECTRIC">ELECTRIC</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <input type="checkbox" id="bus-active" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="w-4 h-4" />
+            <label htmlFor="bus-active" className="text-sm font-semibold text-gray-700 cursor-pointer">Is Active</label>
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Route Edit Modal ───────────────────────────────────────────────────────────
+function RouteModal({ route, token, onClose, onSave }: { route: any; token: string; onClose: () => void; onSave: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    routeNumber: route?.routeNumber || "",
+    name: route?.name || "",
+    type: route?.type || "ORDINARY",
+    baseFare: route?.baseFare || 0,
+    isActive: route?.isActive ?? true,
+  });
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("/api/admin/data?resource=routes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ id: route.id, ...formData }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      onSave();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!route) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+              <MapPin className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="font-black text-gray-800 text-lg">Edit Route</h2>
+              <p className="text-xs text-gray-400">ID #{route.id}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        {error && <div className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Route No.</label>
+              <input type="text" value={formData.routeNumber} onChange={e => setFormData({...formData, routeNumber: e.target.value})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-500" required />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Base Fare</label>
+              <input type="number" value={formData.baseFare} onChange={e => setFormData({...formData, baseFare: parseFloat(e.target.value)})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-500" required step="0.1" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Name</label>
+            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-500" required />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+            <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-500">
+              <option value="ORDINARY">ORDINARY</option>
+              <option value="AC">AC</option>
+              <option value="EXPRESS">EXPRESS</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <input type="checkbox" id="route-active" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="w-4 h-4" />
+            <label htmlFor="route-active" className="text-sm font-semibold text-gray-700 cursor-pointer">Is Active</label>
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50">
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Reports Tab ────────────────────────────────────────────────────────────────
 function ReportsTab({ token }: { token: string }) {
   const [reports, setReports]   = useState<any[]>([]);
@@ -308,10 +473,11 @@ function ReportsTab({ token }: { token: string }) {
 }
 
 // ── Generic Data Tab ───────────────────────────────────────────────────────────
-function DataTab({ token, resource, columns, onRowClick }: {
+function DataTab({ token, resource, columns, onRowClick, refreshKey }: {
   token: string; resource: string;
   columns: { key: string; label: string; render?: (row: any) => React.ReactNode }[];
   onRowClick?: (row: any) => void;
+  refreshKey?: number;
 }) {
   const [rows, setRows]       = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -321,7 +487,7 @@ function DataTab({ token, resource, columns, onRowClick }: {
     setLoading(true);
     fetch(`/api/admin/data?resource=${resource}`, { headers: { "x-admin-token": token } })
       .then(r => r.json()).then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); });
-  }, [token, resource]);
+  }, [token, resource, refreshKey]);
 
   const filtered = search
     ? rows.filter(r => JSON.stringify(r).toLowerCase().includes(search.toLowerCase()))
@@ -377,6 +543,9 @@ export default function AdminDashboard() {
   const [stats, setStats]       = useState<any>(null);
   const [authed, setAuthed]     = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedBus, setSelectedBus]   = useState<any>(null);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   useEffect(() => {
@@ -409,6 +578,8 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {selectedUser && <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
+      {selectedBus && <BusModal bus={selectedBus} token={token} onClose={() => setSelectedBus(null)} onSave={() => { setSelectedBus(null); setDataRefreshKey(k => k + 1); }} />}
+      {selectedRoute && <RouteModal route={selectedRoute} token={token} onClose={() => setSelectedRoute(null)} onSave={() => { setSelectedRoute(null); setDataRefreshKey(k => k + 1); }} />}
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -522,7 +693,7 @@ export default function AdminDashboard() {
         {tab === "feedback" && <FeedbackTab />}
 
         {tab === "buses" && (
-          <DataTab token={token} resource="buses" columns={[
+          <DataTab token={token} resource="buses" refreshKey={dataRefreshKey} onRowClick={row => setSelectedBus(row)} columns={[
             { key: "id",        label: "ID" },
             { key: "busNumber", label: "Bus Number" },
             { key: "route",     label: "Route",     render: r => r.route?.routeNumber ?? "—" },
@@ -533,11 +704,12 @@ export default function AdminDashboard() {
             { key: "isActive",  label: "Active", render: r => r.isActive
               ? <span className="text-green-600 font-bold text-xs">✓ Active</span>
               : <span className="text-red-500 font-bold text-xs">✗ Inactive</span> },
+            { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
           ]} />
         )}
 
         {tab === "routes" && (
-          <DataTab token={token} resource="routes" columns={[
+          <DataTab token={token} resource="routes" refreshKey={dataRefreshKey} onRowClick={row => setSelectedRoute(row)} columns={[
             { key: "routeNumber", label: "Route No." },
             { key: "name",        label: "Name" },
             { key: "authority",   label: "Authority", render: r => r.authority?.name ?? "—" },
@@ -549,6 +721,7 @@ export default function AdminDashboard() {
             { key: "isActive",    label: "Active",    render: r => r.isActive
               ? <span className="text-green-600 font-bold text-xs">✓</span>
               : <span className="text-red-500 font-bold text-xs">✗</span> },
+            { key: "edit",      label: "",        render: () => <span className="text-xs text-blue-500 font-medium">Edit →</span> },
           ]} />
         )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Search, ArrowRight, Calendar, Briefcase, LayoutGrid, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
@@ -20,8 +20,14 @@ export default function HeroSearchBox() {
 
   const [from, setFrom] = useState("");
   const [to, setTo]     = useState("");
-  const [date, setDate] = useState("");
-  const [ticketClass, setTicketClass] = useState("All Classes");
+  
+  const [currentDate, setCurrentDate] = useState("");
+  
+  // Hydration-safe date formatter
+  useEffect(() => {
+    setCurrentDate(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+  }, []);
+  
   const [category, setCategory] = useState("GENERAL");
   
   const [fromSuggestions, setFromSuggestions] = useState<string[]>([]);
@@ -170,26 +176,16 @@ export default function HeroSearchBox() {
           </div>
         </div>
 
-        {/* Date and Class */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-          
-          <div className="relative border border-gray-300 rounded p-2 focus-within:border-blue-500 flex flex-col bg-gray-50">
+        {/* Date Display */}
+        <div className="mt-2">
+          <div className="relative border border-gray-300 rounded p-3 flex flex-col bg-gray-50">
             <label className="text-[10px] text-brand-700 font-bold uppercase mb-1">{t("hero.date")}</label>
             <div className="flex items-center">
               <Calendar className="h-5 w-5 text-brand-700 mr-2" />
-              <input type="date" value={date || today} onChange={(e) => setDate(e.target.value)} className="w-full focus:outline-none text-brand-900 font-bold uppercase bg-transparent" />
+              <span className="w-full text-brand-900 font-bold uppercase bg-transparent">
+                {currentDate || "..."}
+              </span>
             </div>
-          </div>
-
-          <div className="relative border border-gray-300 rounded p-2 focus-within:border-blue-500 flex items-center bg-gray-50">
-            <Briefcase className="h-5 w-5 text-brand-700 mr-2" />
-            <select value={ticketClass} onChange={(e) => setTicketClass(e.target.value)} className="w-full focus:outline-none text-brand-900 font-bold bg-transparent appearance-none">
-              <option>{t("hero.classes")}</option>
-              <option>AC Sleeper</option>
-              <option>Non-AC Sleeper</option>
-              <option>AC Seater</option>
-              <option>Non-AC Seater</option>
-            </select>
           </div>
         </div>
 

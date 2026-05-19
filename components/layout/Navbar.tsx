@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Bus, MapPin, AlertCircle, LayoutDashboard, UserCircle,
@@ -10,7 +11,6 @@ import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState, useRef, useEffect, useId } from "react";
 import AuthModal from "@/components/auth/AuthModal";
-import { SOSModal } from "@/components/shared/SOSModal";
 
 // Live clock shown in top bar
 function LiveClock() {
@@ -108,7 +108,6 @@ export default function Navbar() {
   const { t, language, setLanguage, fontSize, setFontSize } = useLanguage();
   const { user, logout } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isSOSOpen, setIsSOSOpen] = useState(false);
 
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus },
@@ -156,14 +155,6 @@ export default function Navbar() {
 
           {/* Auth area */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSOSOpen(true)}
-              aria-label="Emergency SOS"
-              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold px-2.5 py-1 rounded shadow shadow-red-900/20 transition-all animate-pulse focus:outline-none focus:ring-2 focus:ring-white"
-            >
-              <Phone className="w-3.5 h-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">SOS</span>
-            </button>
             {user ? (
               <UserDropdown user={user} logout={logout} />
             ) : (
@@ -189,8 +180,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="bg-white text-brand-700 p-2 rounded-xl group-hover:scale-105 transition-transform">
-              <Bus className="h-6 w-6" />
+            <div className="bg-white p-1 rounded-xl group-hover:scale-105 transition-transform overflow-hidden shadow-sm flex items-center justify-center">
+              <Image src="/logo.jpg" alt="Where Is My Bus Logo" width={40} height={40} className="object-contain rounded-lg" />
             </div>
             <div>
               <div className="font-black text-xl leading-none tracking-tight">{t("brand.title")}</div>
@@ -238,7 +229,6 @@ export default function Navbar() {
       </div>
 
       {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
-      {isSOSOpen && <SOSModal onClose={() => setIsSOSOpen(false)} />}
     </nav>
   );
 }

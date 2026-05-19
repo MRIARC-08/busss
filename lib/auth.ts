@@ -1,7 +1,16 @@
 import jwt from "jsonwebtoken";
 import { User } from "@prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_temporary_key_12345";
+function requiredEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
+const JWT_SECRET = requiredEnv("JWT_SECRET");
+const ADMIN_SECRET = requiredEnv("ADMIN_SECRET");
 
 export function signToken(user: User) {
   return jwt.sign(
@@ -15,6 +24,26 @@ export function verifyToken(token: string) {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (err) {
+    return null;
+  }
+}
+
+export function signAdminToken(username: string) {
+  return jwt.sign(
+    { username, role: "admin" },
+    ADMIN_SECRET,
+    { expiresIn: "8h" }
+  );
+}
+
+export function verifyAdminToken(token: string) {
+  try {
+    const decoded = jwt.verify(token, ADMIN_SECRET) as jwt.JwtPayload;
+    if (decoded?.role !== "admin" || typeof decoded.username !== "string") {
+      return null;
+    }
+    return decoded;
+  } catch {
     return null;
   }
 }

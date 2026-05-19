@@ -3,9 +3,10 @@
 import HeroSearchBox from "@/components/search/HeroSearchBox";
 import FeatureCards from "@/components/layout/FeatureCards";
 import PopularRoutes from "@/components/layout/PopularRoutes";
+import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useState, useEffect } from "react";
-import { Star, Send, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Send, MessageSquare, ChevronLeft, ChevronRight, ShieldCheck, Wrench, UserCheck, BadgeCheck, Map } from "lucide-react";
 
 // ── Static passenger testimonials ────────────────────────────────────────────
 const TESTIMONIALS = [
@@ -205,6 +206,7 @@ function TestimonialsCarousel() {
   );
 }
 
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { t } = useLanguage();
@@ -303,7 +305,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
+      
+      <PWAInstallPrompt />
     </div>
   );
 }

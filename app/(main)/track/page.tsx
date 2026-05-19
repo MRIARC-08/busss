@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useBusTracking } from "@/hooks/useBusTracking";
 import {
   Loader2, AlertCircle, MapPin, Users, Zap, Clock,
-  Navigation, ArrowLeft, RefreshCw, Bus,
+  Navigation, ArrowLeft, RefreshCw,
 } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 
@@ -79,6 +79,14 @@ function TrackPageContent() {
   const rawBusId = searchParams.get("busId") || "";
   const fromQuery = searchParams.get("from") || "";
   const toQuery   = searchParams.get("to")   || "";
+  const liveLatParam = searchParams.get("liveLat");
+  const liveLonParam = searchParams.get("liveLon");
+  const liveLat = Number(liveLatParam);
+  const liveLon = Number(liveLonParam);
+  const liveRoute = searchParams.get("liveRoute") || "";
+  const routeQuery = searchParams.get("route") || "";
+  const liveSpeedKmh = Number(searchParams.get("liveSpeedKmh"));
+  const hasLivePosition = liveLatParam != null && liveLonParam != null && Number.isFinite(liveLat) && Number.isFinite(liveLon);
 
   const [dbBusId, setDbBusId]       = useState<number | null>(null);
   const [resolving, setResolving]   = useState(true);
@@ -140,11 +148,33 @@ function TrackPageContent() {
 
   const {
     busNumber, routeNumber, routeName, authority,
-    position, currentStopName, nextStopName,
-    distanceToNextKm, etaToNextStopMin,
+    position,
     occupancy, capacity, crowdLevel,
     speedKmh, delayMin, allStops, lastUpdated,
   } = busData;
+
+  function routeCodeFromPlace(place: string): string {
+    const clean = place
+      .replace(/\b(bus|stand|isbt|sector|chowk|terminal|station)\b/gi, "")
+      .replace(/[^a-z0-9 ]/gi, " ")
+      .trim();
+    const words = clean.split(/\s+/).filter(Boolean);
+    const base = words.length > 1
+      ? words.map(word => word[0]).join("")
+      : (words[0] || place).slice(0, 3);
+    return base.toUpperCase().slice(0, 4);
+  }
+
+  const isRawVehicleId = rawBusId && !/^\d+$/.test(rawBusId);
+  const derivedRouteNumber = fromQuery && toQuery
+    ? `${routeCodeFromPlace(fromQuery)}-${routeCodeFromPlace(toQuery)}`
+    : routeNumber;
+  const displayPosition = hasLivePosition ? { lat: liveLat, lon: liveLon } : position;
+  const displayBusNumber = hasLivePosition || isRawVehicleId ? rawBusId : busNumber;
+  const displayRouteNumber = hasLivePosition && liveRoute
+    ? liveRoute.replace(/(up|down)$/i, "")
+    : routeQuery || derivedRouteNumber;
+  const displaySpeedKmh = hasLivePosition && Number.isFinite(liveSpeedKmh) ? liveSpeedKmh : speedKmh;
 
   function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371;
@@ -168,6 +198,14 @@ function TrackPageContent() {
   const totalTimeMin = speedKmh > 0 ? (totalDistKm / speedKmh) * 60 : 0;
   const lastStopEta = allStops[allStops.length - 1]?.etaFromNowMin;
 
+  function formatTimeMin(mins: number): string {
+    const total = Math.round(mins);
+    if (total < 60) return `${total} min`;
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
       {/* Header */}
@@ -178,28 +216,29 @@ function TrackPageContent() {
             {t("track.status")}
           </div>
           <h1 className="text-2xl font-black text-gray-800">
-            {t("track.route")} {routeNumber}
+            {t("track.route")} {displayRouteNumber}
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            {t("track.vehicle")} {busNumber} • {t("track.towards")} <span className="font-bold text-gray-700">{routeName}</span>
+            {t("track.vehicle")} {displayBusNumber} • {t("track.towards")} <span className="font-bold text-gray-700">{routeName}</span>
           </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t("track.speed")}</p>
-          <p className="text-xl font-black text-brand-600">{speedKmh} <span className="text-sm text-brand-400">km/h</span></p>
+          <p className="text-xl font-black text-brand-600">{displaySpeedKmh} <span className="text-sm text-brand-400">km/h</span></p>
         </div>
       </div>
 
       {/* Map */}
       <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
         <TrackingMap
-          position={position}
-          busNumber={busNumber}
+          position={displayPosition}
+          busNumber={displayBusNumber}
           busId={dbBusId ?? rawBusId}
           allStops={allStops}
-          routeNumber={routeNumber}
+          routeNumber={displayRouteNumber}
           fromStop={fromQuery || undefined}
           toStop={toQuery || undefined}
+          snapToRoute={!hasLivePosition}
         />
       </div>
 
@@ -207,8 +246,8 @@ function TrackPageContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { icon: <MapPin      className="w-4 h-4" />, label: t("track.totalDist"),   value: `${totalDistKm.toFixed(1)} km`,                       cls: "text-blue-700"   },
-          { icon: <Clock       className="w-4 h-4" />, label: t("track.totalTime"),   value: `${Math.round(totalTimeMin)} min`,                    cls: "text-green-700"  },
-          { icon: <Navigation  className="w-4 h-4" />, label: t("track.reachIn"),   value: lastStopEta != null ? `${Math.round(lastStopEta)} min` : t("track.reached"), cls: "text-orange-700" },
+          { icon: <Clock       className="w-4 h-4" />, label: t("track.totalTime"),   value: formatTimeMin(totalTimeMin),                    cls: "text-green-700"  },
+          { icon: <Navigation  className="w-4 h-4" />, label: t("track.reachIn"),   value: lastStopEta != null ? formatTimeMin(lastStopEta) : t("track.reached"), cls: "text-orange-700" },
           { icon: <Zap         className="w-4 h-4" />, label: t("track.delay"),        value: delayMin === 0 ? t("track.onTime") : `+${delayMin} min`,      cls: delayMin === 0 ? "text-green-700" : "text-red-700" },
         ].map(({ icon, label, value, cls }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
@@ -220,34 +259,15 @@ function TrackPageContent() {
         ))}
       </div>
 
-      {/* Current & next stop */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <Bus className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.currentlyAt")}</p>
-            <p className="font-black text-gray-800 truncate">{currentStopName}</p>
-          </div>
-          <CrowdBadge level={crowdLevel} />
-        </div>
-
-        <div className="border-t border-dashed border-gray-200 pt-4 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <MapPin className="w-4 h-4 text-green-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("track.nextStop")}</p>
-            <p className="font-black text-gray-800 truncate">{nextStopName}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{distanceToNextKm} km · {etaToNextStopMin} min {t("track.away")}</p>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-gray-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("track.occupancy")}</p>
+      {/* Occupancy */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-400" />
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("track.occupancy")}</p>
+            </div>
+            <CrowdBadge level={crowdLevel} />
           </div>
           <OccupancyBar occupied={occupancy} capacity={capacity} />
         </div>
@@ -259,10 +279,10 @@ function TrackPageContent() {
           <h2 className="font-black text-gray-800 text-sm uppercase tracking-wider">Route Timeline</h2>
         </div>
         <div className="px-5 py-4 space-y-0">
-          {allStops.map((stop, i) => {
+          {allStops.filter((_, i) => i === 0 || i === allStops.length - 1).map((stop, i, arr) => {
             const isPassed  = stop.status === "DEPARTED";
             const isCurrent = stop.status === "CURRENT";
-            const isLast    = i === allStops.length - 1;
+            const isLast    = i === arr.length - 1;
             return (
               <div key={stop.sequence} className="flex gap-3 relative">
                 {!isLast && (

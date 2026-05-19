@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { Loader2, ArrowRight, Bus, MapPin, Clock, Users, Banknote, Wind } from "lucide-react";
+import { Loader2, ArrowRight, Bus, MapPin, Clock, Users, Banknote, Wind, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 
@@ -17,19 +17,28 @@ function SearchResults() {
 
   const [loading, setLoading] = useState(!isSameStop);
   const [data, setData] = useState<{upcoming: any[], departed: any[]}>({ upcoming: [], departed: [] });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!from || !to || isSameStop) return;
     
+    setError("");
+    setLoading(true);
     // Simulate complex static GTFS DB query joined with realtime data
     fetch(`/api/search-matching?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
       .then(r => r.json())
       .then(d => {
          if (d.success) {
            setData({ upcoming: d.upcoming, departed: d.departed });
+         } else {
+           setData({ upcoming: [], departed: [] });
+           setError(d.error || "Please enter a valid starting point and destination.");
          }
          setLoading(false);
-      }).catch(() => setLoading(false));
+      }).catch(() => {
+        setError("Could not validate these locations. Please try again.");
+        setLoading(false);
+      });
   }, [from, to, isSameStop]);
 
   // Same-stop error screen
@@ -59,6 +68,23 @@ function SearchResults() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-24 flex flex-col items-center text-center gap-6">
+        <div className="w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-gray-800 mb-2">Invalid Location</h2>
+          <p className="text-gray-500 leading-relaxed">{error}</p>
+        </div>
+        <a href="/" className="inline-flex items-center gap-2 bg-brand-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-brand-700 transition-colors">
+          ← {t("search.searchAgain")}
+        </a>
+      </div>
+    );
+  }
+
   const BusCard = ({ bus, departed }: { bus: any, departed?: boolean }) => {
     const routeNum = bus.routeId ? String(bus.routeId).replace(/(up|down)/i, '') : "N/A";
     const direction = String(bus.routeId).match(/up/i) ? 'UP' : String(bus.routeId).match(/down/i) ? 'DOWN' : 'REGULAR';
@@ -67,7 +93,13 @@ function SearchResults() {
     return (
       <Link
         href={(() => {
-          return `/track?busId=${bus.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+          const trackParams = new URLSearchParams({
+            busId: bus.id,
+            from,
+            to,
+          });
+          if (bus.routeId) trackParams.set("route", routeNum);
+          return `/track?${trackParams.toString()}`;
         })()}
         className={`block p-5 rounded-xl border bg-white border-brand-200 hover:border-brand-400 hover:shadow-md transition-all group`}
       >
@@ -89,7 +121,7 @@ function SearchResults() {
               <span className={`text-lg font-black block ${departed ? 'text-gray-500' : 'text-brand-600'}`}>
                 {departed ? t("search.passed") : `~${bus.etaToSource} ${t("search.min")}`}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{departed ? t("search.alreadyDeparted") : t("search.estimatedArrival")}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{departed ? t("search.alreadyDeparted") : t("search.arrivalAtStart")}</span>
            </div>
         </div>
 

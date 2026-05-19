@@ -20,15 +20,36 @@ async function geocode(query: string) {
   if (!query) return null;
   const key = query.toLowerCase();
   if (geocodeCache.has(key)) return geocodeCache.get(key);
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + " Delhi NCR")}`);
-    const data = await res.json();
-    if (data && data[0]) {
-      const coord = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-      geocodeCache.set(key, coord);
-      return coord;
+
+  const queryVariants = [
+    `${query}, India`,
+    `${query}, Delhi NCR, India`,
+    `${query}, Delhi, India`,
+    query,
+  ];
+
+  for (const variant of queryVariants) {
+    try {
+      const params = new URLSearchParams({
+        format: "json",
+        q: variant,
+        limit: "1",
+        countrycodes: "IN",
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+        headers: { "User-Agent": "SmartBusNavigator/1.0" },
+      });
+      const data = await res.json();
+      if (data && data[0]) {
+        const coord = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        geocodeCache.set(key, coord);
+        return coord;
+      }
+    } catch {
+      // Try the next query variant.
     }
-  } catch (e) {}
+  }
+
   return null;
 }
 
@@ -72,9 +93,11 @@ export async function GET(
     return NextResponse.json({ error: "Invalid bus ID" }, { status: 400 });
   }
 
-  const url      = new URL(req.url);
-  const fromStop = url.searchParams.get("from")?.trim().toLowerCase() ?? "";
-  const toStop   = url.searchParams.get("to")?.trim().toLowerCase()   ?? "";
+  const url         = new URL(req.url);
+  const fromStopRaw = url.searchParams.get("from")?.trim() ?? "";
+  const toStopRaw   = url.searchParams.get("to")?.trim()   ?? "";
+  const fromStop    = fromStopRaw.toLowerCase();
+  const toStop      = toStopRaw.toLowerCase();
 
   let bus: any;
   try {
@@ -100,15 +123,15 @@ export async function GET(
 
   // ── Dynamically override route geometry if user searched specific places ───
   if (fromStop && toStop) {
-    const origin = await geocode(fromStop);
-    const dest = await geocode(toStop);
+    const origin = await geocode(fromStopRaw);
+    const dest = await geocode(toStopRaw);
     if (origin && dest) {
       const numPoints = 8;
       stops = Array.from({length: numPoints}).map((_, i) => {
         const frac = i / (numPoints - 1);
         return {
           sequence: i + 1,
-          stopName: i === 0 ? fromStop : i === numPoints - 1 ? toStop : `Route Waypoint ${i}`,
+          stopName: i === 0 ? fromStopRaw : i === numPoints - 1 ? toStopRaw : `Route Waypoint ${i}`,
           latitude: origin.lat + (dest.lat - origin.lat) * frac,
           longitude: origin.lon + (dest.lon - origin.lon) * frac,
         };
@@ -248,8 +271,8 @@ export async function GET(
     return fallback;
   }
 
-  // Default: start from current segment, end at last stop
-  const defaultStart = segmentIndex;
+  // Default: show the route from its origin unless the user supplied a from stop.
+  const defaultStart = 0;
   const defaultEnd   = allStops.length - 1;
 
   let startIdx = findStopIdx(fromStop, defaultStart);
@@ -257,8 +280,6 @@ export async function GET(
 
   // Ensure valid order
   if (startIdx > endIdx) [startIdx, endIdx] = [endIdx, startIdx];
-  // Never go before current position if from wasn't matched
-  if (!fromStop) startIdx = Math.min(startIdx, segmentIndex);
 
   const slicedStops = allStops.slice(startIdx, endIdx + 1);
 
@@ -272,17 +293,40 @@ export async function GET(
   }
 
   if (fromStop && toStop) {
-    dynamicRouteName = `${capitalize(fromStop)} - ${capitalize(toStop)}`;
+    dynamicRouteName = `${capitalize(fromStopRaw)} - ${capitalize(toStopRaw)}`;
     
     // Override the first stop name if we couldn't fuzzy match it
     if (slicedStops.length > 0 && findStopIdx(fromStop, -1) === -1) {
-      slicedStops[0].stopName = capitalize(fromStop);
+      slicedStops[0].stopName = capitalize(fromStopRaw);
     }
     // Override the last stop name if we couldn't fuzzy match it
     if (slicedStops.length > 1 && findStopIdx(toStop, -1) === -1) {
-      slicedStops[slicedStops.length - 1].stopName = capitalize(toStop);
+      slicedStops[slicedStops.length - 1].stopName = capitalize(toStopRaw);
     }
   }
+
+  const displayStops = slicedStops.map((stop: any, index: number) => {
+    if (index === 0) {
+      return { ...stop, status: "CURRENT" as const, etaFromNowMin: null };
+    }
+
+    let cumulativeEta = 0;
+    for (let j = 0; j < index; j++) {
+      const segDist = haversineKm(
+        slicedStops[j].latitude, slicedStops[j].longitude,
+        slicedStops[j + 1].latitude, slicedStops[j + 1].longitude
+      );
+      cumulativeEta += speedKmh > 0 ? (segDist / speedKmh) * 60 : 0;
+    }
+
+    return {
+      ...stop,
+      status: "UPCOMING" as const,
+      etaFromNowMin: parseFloat(cumulativeEta.toFixed(1)),
+    };
+  });
+
+  const displayPositionStop = displayStops[0] ?? curStart;
 
   console.log(
     `[SIM] Bus ${busId} | Seg ${segmentIndex} | Progress ${sim.progressPct.toFixed(1)}% | ` +
@@ -296,7 +340,7 @@ export async function GET(
     routeNumber:      bus.route.routeNumber,
     routeName:        dynamicRouteName,
     authority:        bus.authority.name,
-    position:         { lat: currentLat, lon: currentLon },
+    position:         { lat: displayPositionStop.latitude, lon: displayPositionStop.longitude },
     segmentIndex,
     progressPct:      parseFloat(sim.progressPct.toFixed(2)),
     currentStopName:  curStart.stopName,
@@ -309,7 +353,7 @@ export async function GET(
     status:           "ON_ROUTE",
     delayMin:         sim.delayMin,
     speedKmh,
-    allStops:         slicedStops,   // ← already sliced to from→to segment
+    allStops:         displayStops,
     lastUpdated:      new Date().toISOString(),
   });
 }

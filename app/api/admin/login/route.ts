@@ -1,21 +1,27 @@
 import { NextResponse } from "next/server";
+import { signAdminToken } from "@/lib/auth";
 
-// ── Admin credentials (env-first, fallback for dev) ──────────────────────────
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin@123";
-const ADMIN_SECRET   = process.env.ADMIN_SECRET   ?? "wimb-admin-secret-2026";
+function getAdminCredentials() {
+  const username = process.env.ADMIN_USERNAME;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!username || !password) {
+    throw new Error("ADMIN_USERNAME and ADMIN_PASSWORD are required");
+  }
+  return { username, password };
+}
 
 export async function POST(req: Request) {
-  const { username, password } = await req.json().catch(() => ({}));
+  try {
+    const { username, password } = await req.json().catch(() => ({}));
+    const admin = getAdminCredentials();
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    if (username !== admin.username || password !== admin.password) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    return NextResponse.json({ token: signAdminToken(username) });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return NextResponse.json({ error: "Admin auth is not configured" }, { status: 500 });
   }
-
-  // Simple tamper-evident token: base64(payload):base64(secret-hash)
-  const payload  = Buffer.from(JSON.stringify({ username, ts: Date.now() })).toString("base64");
-  const hmacData = Buffer.from(`${payload}.${ADMIN_SECRET}`).toString("base64");
-  const token    = `${payload}.${hmacData}`;
-
-  return NextResponse.json({ token });
 }

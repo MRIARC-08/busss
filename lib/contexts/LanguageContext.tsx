@@ -24,6 +24,7 @@ const translations: Translations = {
     "nav.meals": "MEALS",
     "nav.liveMap": "Live Map",
     "nav.profile": "Profile",
+    "nav.help": "Help",
     
     "brand.title": "WHERE IS MY BUS",
     "brand.subtitle": "SMART NAVIGATOR",
@@ -148,6 +149,7 @@ const translations: Translations = {
     "nav.meals": "भोजन",
     "nav.liveMap": "लाइव मैप",
     "nav.profile": "प्रोफ़ाइल",
+    "nav.help": "सहायता",
     
     "brand.title": "मेरी बस कहाँ है",
     "brand.subtitle": "स्मार्ट नेविगेटर",

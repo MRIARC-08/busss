@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Bus, MapPin, AlertCircle, LayoutDashboard, UserCircle,
-  ChevronDown, LogOut, User, Phone,
+  ChevronDown, LogOut, User, Phone, HelpCircle,
 } from "lucide-react";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -112,6 +112,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: t("nav.home"), icon: Bus, id: "tour-home" },
     { href: "/report", label: t("nav.report"), icon: AlertCircle, id: "tour-report" },
+    { href: "/help", label: t("nav.help"), icon: HelpCircle, id: "tour-help" },
   ];
 
   return (

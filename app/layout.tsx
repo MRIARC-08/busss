@@ -27,6 +27,9 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={`${inter.className} bg-gray-50 min-h-screen flex flex-col`}>
         <AppProviders>
           {children}

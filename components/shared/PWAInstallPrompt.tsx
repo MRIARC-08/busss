@@ -28,12 +28,25 @@ export function PWAInstallPrompt() {
         setIsVisible(true);
       };
       window.addEventListener("beforeinstallprompt", handler);
-      return () => window.removeEventListener("beforeinstallprompt", handler);
+
+      // Dev simulated fallback: trigger after 3.5s if browser native prompt is blocked/delayed
+      const fallbackTimer = setTimeout(() => {
+        setIsVisible(true);
+      }, 3500);
+
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handler);
+        clearTimeout(fallbackTimer);
+      };
     }
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Smooth mock install complete for simulated fallbacks
+      setIsVisible(false);
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
